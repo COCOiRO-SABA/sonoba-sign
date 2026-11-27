@@ -21,6 +21,18 @@ function getOffice_(key) {
     || OFFICES.filter(function (o) { return o.key === DEFAULT_OFFICE; })[0];
 }
 
+/**
+ * マスタータブの見出し行の次(データの始まり)を0始まりで返す。
+ * 「タグ名」で始まる行があればその次の行から。なければ2行目から(1行目が見出し)
+ * 2026-11-27 COCOiRO：見出しの上に説明行がある会社(らふたす)も同じコードで読めるようにした
+ */
+function masterDataStart_(values) {
+  for (let i = 0; i < Math.min(values.length, 10); i++) {
+    if (String(values[i][0] || "").trim().indexOf("タグ名") === 0) return i + 1;
+  }
+  return 1;
+}
+
 /** その事業所で使うマスタータブ（法人共通＋事業所） */
 function masterSheetsFor_(officeKey) {
   const o = getOffice_(officeKey);
@@ -35,6 +47,10 @@ const ZENKAKU_SYMBOL_MAP = {
 // ================= メニュー =================
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
+  if (CONFIG.simpleMenu) { // 2026-11-27 COCOiRO：書類はWebアプリだけでつくる会社
+    ui.createMenu("そのばサイン").addItem("Webアプリを開く", "showAppUrl_").addToUi();
+    return;
+  }
   ui.createMenu("📄 書類をつくる")
     .addItem("すべてのサービスの書類を作成", "generateAll")
     .addSeparator()
@@ -48,6 +64,14 @@ function onOpen() {
     .addItem("docxテンプレートを取り込む", "importDocxTemplates")
     .addItem("登録タグの一覧を確認", "listTags")
     .addToUi();
+}
+
+function showAppUrl_() {
+  const url = ScriptApp.getService().getUrl();
+  const html = url
+    ? '<p style="font-family:sans-serif">下のリンクから開いてください。</p><p><a href="' + url + '" target="_blank">そのばサインを開く</a></p>'
+    : '<p style="font-family:sans-serif">まだデプロイされていません。COCOiROに連絡してください。</p>';
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(360).setHeight(140), "そのばサイン");
 }
 
 // ================= 書類生成まわり =================
@@ -85,8 +109,9 @@ function loadMaster_(officeKey) {
     const sheet = ss.getSheetByName(def.name);
     if (!sheet) return;
     const values = sheet.getDataRange().getValues();
+    const start = masterDataStart_(values);
     values.forEach(function (row, i) {
-      if (i === 0) return;
+      if (i < start) return;
       const tag = String(row[0] || "").trim();
       if (!tag) return;
       master[tag] = toZenkaku_(masterValueToString_(row[1]));
@@ -98,18 +123,22 @@ function loadMaster_(officeKey) {
   return master;
 }
 
-/** テンプレートタブから [{url, outName}] を返す */
+/**
+ * テンプレートタブから [{url, outName}] を返す
+ * ・A列URL／B列書類名 の形(Solrianなど)と、A列書類名／B列URL の形(らふたす)のどちらも読む
+ */
 function loadTemplates_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_TEMPLATE);
   if (!sheet) throw new Error("「" + SHEET_TEMPLATE + "」タブが見つかりません。管理用メニューから初期セットアップを実行してください。");
   const values = sheet.getDataRange().getValues();
   const list = [];
-  values.forEach(function (row, i) {
-    if (i === 0) return;
-    const url = String(row[0] || "").trim();
-    const outName = String(row[1] || "").trim();
-    if (url && url.indexOf("http") === 0) list.push({ url: url, outName: outName || "生成書類" });
+  values.forEach(function (row) {
+    const cells = row.map(function (v) { return String(v || "").trim(); });
+    const u = cells.findIndex(function (v) { return v.indexOf("http") === 0; });
+    if (u < 0) return;
+    const outName = u === 0 ? cells[1] : cells[u - 1];
+    list.push({ url: cells[u], outName: outName || "生成書類" });
   });
   return list;
 }

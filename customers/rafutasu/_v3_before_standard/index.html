@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #f5f6f4; --card: #ffffff; --ink: #2b2f2c; --sub: #6b726d; --line: #dfe3df;
+    --main: #3f7d5c; --main-soft: #e6f0ea; --warn: #b3412f; --yellow: #fff7c2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 17px; line-height: 1.6; touch-action: manipulation; }
+  body.signing { -webkit-user-select: none; user-select: none; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--card); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; }
+  .brand { font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  .brand svg { width: 26px; height: 26px; }
+  .office { color: var(--sub); font-size: 14px; }
+  nav { display: flex; padding: 0 12px; gap: 4px; }
+  nav button { flex: 1; border: 0; background: none; padding: 12px 8px; font-size: 16px; color: var(--sub); border-bottom: 3px solid transparent; font-family: inherit; }
+  nav button.on { color: var(--main); border-bottom-color: var(--main); font-weight: 700; }
+  main { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; }
+  section.tab { display: none; }
+  section.tab.on { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+  h2 { font-size: 18px; margin: 0 0 14px; }
+  label { display: block; font-size: 14px; color: var(--sub); margin: 14px 0 6px; }
+  label .req { color: var(--warn); font-size: 12px; margin-left: 6px; }
+  input[type=text], input[type=tel], input[type=email], select, textarea { width: 100%; font-size: 17px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-family: inherit; color: var(--ink); }
+  select { -webkit-appearance: none; appearance: none; padding-right: 44px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b726d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; background-size: 14px 14px; }
+  input[type=date] { max-width: 100%; min-width: 0; display: block; width: 100%; font-size: 17px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-family: inherit; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .row3 { display: grid; grid-template-columns: 160px 1fr; gap: 0 14px; }
+  @media (max-width: 560px) { .row, .row3 { grid-template-columns: 1fr; } }
+  .hint { font-size: 13px; color: var(--sub); margin-top: 4px; }
+  .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+  .choices label { margin: 0; display: flex; align-items: center; gap: 6px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-size: 15px; background: #fff; }
+  .choices input { width: 18px; height: 18px; accent-color: var(--main); }
+  .choices label:has(input:checked) { border-color: var(--main); background: var(--main-soft); }
+  .check { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--ink); font-size: 15px; }
+  .check input { width: 18px; height: 18px; accent-color: var(--main); }
+  .btn { display: inline-block; border: 0; border-radius: 12px; padding: 14px 22px; font-size: 17px; font-weight: 700; font-family: inherit; background: var(--main); color: #fff; cursor: pointer; }
+  .btn:disabled { background: #b9c2bc; cursor: default; }
+  .btn.ghost { background: #fff; color: var(--main); border: 1px solid var(--main); }
+  .btn.small { padding: 8px 14px; font-size: 14px; }
+  .btn.wide { width: 100%; }
+  .msg { margin-top: 14px; padding: 12px 14px; border-radius: 10px; font-size: 15px; display: none; }
+  .msg.ok { display: block; background: var(--main-soft); color: #24543b; }
+  .msg.err { display: block; background: #fbe9e6; color: var(--warn); }
+  .msg a { color: inherit; font-weight: 700; }
+  .tag { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--main-soft); color: var(--main); white-space: nowrap; }
+  .doc-pick { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 16px; font-family: inherit; color: var(--ink); margin-bottom: 8px; }
+  .doc-pick.on { border-color: var(--main); background: var(--main-soft); }
+  .doc-pick:disabled { color: var(--sub); background: #f3f4f3; }
+  .signer { background: var(--main-soft); border-radius: 10px; padding: 12px 14px; font-size: 16px; margin-bottom: 6px; }
+  .signer strong { font-size: 18px; }
+  .sigbox { border: 2px dashed #b9c2bc; border-radius: 12px; background: #fff; position: relative; }
+  #signCanvasWrap, .sigwrap { touch-action: none; user-select: none; -webkit-touch-callout: none; }
+  canvas { display: block; width: 100%; height: 220px; border-radius: 12px; }
+  .sighead { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px; }
+  .sighead strong { font-size: 16px; }
+  .placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #b9c2bc; pointer-events: none; font-size: 15px; }
+  .master-row { display: grid; grid-template-columns: 200px 1fr; gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .master-row:last-child { border-bottom: 0; }
+  .master-row .k { font-size: 14px; padding-top: 12px; }
+  .master-row .k small { display: block; color: var(--sub); font-size: 12px; }
+  .master-row textarea { background: var(--yellow); min-height: 48px; resize: vertical; font-size: 16px; }
+  @media (max-width: 560px) { .master-row { grid-template-columns: 1fr; } .master-row .k { padding-top: 0; } }
+  .loading { position: fixed; inset: 0; background: rgba(255,255,255,.7); display: none; align-items: center; justify-content: center; z-index: 50; font-weight: 700; color: var(--main); }
+  .loading.on { display: flex; }
+  .muted { color: var(--sub); font-size: 15px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#3f7d5c"/><path d="M9.5 16.5l4.2 4.2 8.8-9.4" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      そのばサイン
+    </div>
+    <div class="office" id="officeName"></div>
+  </div>
+  <nav>
+    <button data-tab="info">事業所情報</button>
+    <button data-tab="issue" class="on">書類発行</button>
+    <button data-tab="sign">サイン</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 事業所情報 -->
+  <section class="tab" id="tab-info">
+    <div class="card">
+      <h2>事業所情報</h2>
+      <p class="muted">書類に入る事業所の情報です。変わったところだけ直して「保存する」を押してください。</p>
+      <div id="masterList"></div>
+      <div style="margin-top:16px"><button class="btn wide" id="saveMasterBtn">保存する</button></div>
+      <div class="msg" id="infoMsg"></div>
+    </div>
+  </section>
+
+  <!-- 書類発行 -->
+  <section class="tab on" id="tab-issue">
+    <div class="card">
+      <h2>利用者</h2>
+      <label>利用者のお名前<span class="req">必須</span></label>
+      <input type="text" id="fName" placeholder="例）山田 花子" autocomplete="off">
+      <div class="row3">
+        <div>
+          <label>郵便番号</label>
+          <input type="tel" id="fZip" placeholder="例）8112209" maxlength="8" inputmode="numeric">
+        </div>
+        <div>
+          <label>住所</label>
+          <input type="text" id="fAddress" placeholder="郵便番号を入れると自動で入ります">
+        </div>
+      </div>
+      <div class="hint" id="zipHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>サインする人</h2>
+      <div class="choices">
+        <label><input type="radio" name="signer" value="本人" checked>ご本人</label>
+        <label><input type="radio" name="signer" value="代理人">代理人（ご家族など）</label>
+      </div>
+      <div class="hint">サインの画面では、ここで選んだ人のサイン欄だけが出ます</div>
+      <div id="agentFields" class="hidden">
+        <label>代理人の続柄<span class="req">必須</span></label>
+        <input type="text" id="fAgentRelation" placeholder="例）長女">
+        <label>代理人の住所</label>
+        <input type="text" id="fAgentAddress" placeholder="例）〒811-2209 福岡県糟屋郡志免町…">
+        <label class="check"><input type="checkbox" id="fAgentSame">利用者と同じ住所</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>日付・説明者</h2>
+      <div class="row">
+        <div><label>重要事項の説明日</label><input type="date" id="fExplainDate"></div>
+        <div><label>契約締結日</label><input type="date" id="fContractDate"></div>
+      </div>
+      <label>説明者</label>
+      <select id="fExplainer"></select>
+      <label>契約期間</label>
+      <div class="row">
+        <div><input type="date" id="fTermStart"><div class="hint">開始日</div></div>
+        <div><input type="date" id="fTermEnd"><div class="hint">終了日（空欄なら書類も空欄のまま）</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>利用票等の受領方法（別紙１）</h2>
+      <div class="choices">
+        <label><input type="radio" name="receipt" value="紙">紙で受領する</label>
+        <label><input type="radio" name="receipt" value="電子">電子媒体、メール等で受領する</label>
+        <label><input type="radio" name="receipt" value="相談">状況に応じて相談する</label>
+      </div>
+      <div class="hint">選ばなければ、書類は空欄（□）のままになります</div>
+      <label>登録連絡先 代表者名</label>
+      <input type="text" id="fContactName">
+      <div class="row">
+        <div><label>電話番号</label><input type="tel" id="fContactTel"></div>
+        <div><label>メールアドレス</label><input type="email" id="fContactMail" autocapitalize="off"></div>
+      </div>
+    </div>
+
+    <button class="btn wide" id="issueBtn" disabled>書類をつくる</button>
+    <div class="msg" id="issueMsg"></div>
+  </section>
+
+  <!-- サイン -->
+  <section class="tab" id="tab-sign">
+    <div class="card">
+      <h2>利用者を選ぶ</h2>
+      <select id="sClient"><option value="">読み込み中…</option></select>
+      <div style="margin-top:10px"><button class="btn ghost small" id="reloadBtn">一覧を更新</button></div>
+    </div>
+
+    <div class="card hidden" id="docCard">
+      <h2>書類を選ぶ</h2>
+      <div id="docPicker"></div>
+    </div>
+
+    <div class="card hidden" id="signCard">
+      <h2>サイン</h2>
+      <div class="signer">サインする人：<strong id="signerLabel"></strong></div>
+      <p class="muted" id="docOpenLine"></p>
+
+      <div class="sighead"><strong>こちらにサインしてください</strong><button class="btn ghost small" data-clear="1">書き直す</button></div>
+      <div class="sigbox sigwrap" id="signCanvasWrap"><canvas id="cvSign"></canvas><div class="placeholder" id="phSign">ここに指でお名前を書いてください</div></div>
+
+      <div style="margin-top:20px"><button class="btn wide" id="signBtn" disabled>サインを確定してPDFにする</button></div>
+    </div>
+    <div class="msg" id="signMsg"></div>
+  </section>
+</main>
+
+<div class="loading" id="loading">処理しています…</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let INIT = null, CLIENTS = [], selectedDoc = null, selectedClient = null, wantFolder = '';
+
+  /* ---------- 共通 ---------- */
+  function busy(on) { $('loading').classList.toggle('on', on); }
+  function msg(id, type, html) { const el = $(id); el.className = 'msg ' + type; el.innerHTML = html; }
+  function clearMsg(id) { const el = $(id); el.className = 'msg'; el.innerHTML = ''; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function call(fn, arg) {
+    return new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(e && e.message ? e.message : String(e)))[fn](arg);
+    });
+  }
+  function today() {
+    const d = new Date(); const p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  /* ---------- タブ ---------- */
+  function showTab(name) {
+    document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x.dataset.tab === name));
+    document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + name));
+    window.scrollTo(0, 0);
+    if (name === 'sign') loadClients();
+  }
+  document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  /* ---------- 初期化 ---------- */
+  function applyInit(d) {
+    INIT = d;
+    $('officeName').textContent = d.office;
+    const sel = $('fExplainer');
+    sel.innerHTML = d.explainers.map(n => '<option>' + esc(n) + '</option>').join('');
+    $('masterList').innerHTML = d.rows.map((r, i) =>
+      '<div class="master-row"><div class="k">' + esc(r.tag.replace(/^[^_]+_/, '')) + (r.memo ? '<small>' + esc(r.memo) + '</small>' : '') + '</div>' +
+      '<textarea data-i="' + i + '" rows="1">' + esc(r.value) + '</textarea></div>').join('');
+  }
+  $('fExplainDate').value = today();
+  $('fContractDate').value = today();
+  $('fTermStart').value = today();
+  busy(true);
+  call('getInitData').then(applyInit).catch(e => msg('issueMsg', 'err', esc(e))).finally(() => busy(false));
+
+  /* ---------- 事業所情報 ---------- */
+  $('saveMasterBtn').addEventListener('click', () => {
+    const changes = [];
+    document.querySelectorAll('#masterList textarea').forEach(t => {
+      const r = INIT.rows[Number(t.dataset.i)];
+      if (t.value !== r.value) changes.push({ sheet: r.sheet, row: r.row, tag: r.tag, value: t.value });
+    });
+    if (!changes.length) { msg('infoMsg', 'ok', '変更はありません'); return; }
+    busy(true);
+    call('saveMaster', changes).then(d => { applyInit(d); msg('infoMsg', 'ok', changes.length + '件保存しました。次につくる書類から反映されます'); })
+      .catch(e => msg('infoMsg', 'err', esc(e))).finally(() => busy(false));
+  });
+
+  /* ---------- 書類発行 ---------- */
+  function signerValue() { const r = document.querySelector('input[name=signer]:checked'); return r ? r.value : '本人'; }
+  function updateIssueState() {
+    const isAgent = signerValue() === '代理人';
+    $('agentFields').classList.toggle('hidden', !isAgent);
+    $('issueBtn').disabled = !$('fName').value.trim() || (isAgent && !$('fAgentRelation').value.trim());
+  }
+  function userAddressText() {
+    const zip = $('fZip').value.trim(), addr = $('fAddress').value.trim();
+    return (zip ? '〒' + zip + ' ' : '') + addr;
+  }
+  function syncAgentAddress() {
+    if ($('fAgentSame').checked) $('fAgentAddress').value = userAddressText();
+    $('fAgentAddress').disabled = $('fAgentSame').checked;
+  }
+  $('fName').addEventListener('input', updateIssueState);
+  $('fAgentRelation').addEventListener('input', updateIssueState);
+  document.querySelectorAll('input[name=signer]').forEach(x => x.addEventListener('change', updateIssueState));
+  $('fAgentSame').addEventListener('change', syncAgentAddress);
+  $('fAddress').addEventListener('input', syncAgentAddress);
+
+  // 郵便番号 → 住所（zipcloudをJSONPで呼ぶ）
+  $('fZip').addEventListener('input', () => {
+    const z = $('fZip').value.replace(/[^0-9０-９]/g, '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+    $('zipHint').textContent = '';
+    if (z.length !== 7) return;
+    $('fZip').value = z.slice(0, 3) + '-' + z.slice(3);
+    const cb = 'zipcb_' + Date.now();
+    const s = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); $('zipHint').textContent = '住所を自動で取れませんでした。手で入れてください'; }, 6000);
+    function cleanup() { clearTimeout(timer); delete window[cb]; s.remove(); }
+    window[cb] = (res) => {
+      cleanup();
+      if (res && res.results && res.results[0]) {
+        const r = res.results[0];
+        if (!$('fAddress').value.trim()) $('fAddress').value = r.address1 + r.address2 + r.address3;
+        $('zipHint').textContent = '住所を入れました。番地を続けて入れてください';
+        $('fAddress').focus();
+        syncAgentAddress();
+      } else {
+        $('zipHint').textContent = '該当する住所が見つかりませんでした。手で入れてください';
+      }
+    };
+    s.onerror = () => { cleanup(); $('zipHint').textContent = '住所を自動で取れませんでした。手で入れてください'; };
+    s.src = 'https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + z + '&callback=' + cb;
+    document.body.appendChild(s);
+  });
+
+  $('issueBtn').addEventListener('click', () => {
+    clearMsg('issueMsg');
+    syncAgentAddress();
+    const r = document.querySelector('input[name=receipt]:checked');
+    const isAgent = signerValue() === '代理人';
+    const form = {
+      name: $('fName').value, zip: $('fZip').value, address: $('fAddress').value,
+      explainDate: $('fExplainDate').value, contractDate: $('fContractDate').value, explainer: $('fExplainer').value,
+      termStart: $('fTermStart').value, termEnd: $('fTermEnd').value,
+      receipt: r ? r.value : '', contactName: $('fContactName').value, contactTel: $('fContactTel').value, contactMail: $('fContactMail').value,
+      signer: signerValue(),
+      agentRelation: isAgent ? $('fAgentRelation').value : '',
+      agentAddress: isAgent ? $('fAgentAddress').value : ''
+    };
+    busy(true);
+    call('generateForClient', form).then(res => {
+      msg('issueMsg', 'ok', '書類をつくりました（' + esc(res.folder) + '）<br>サインする人：' + esc(res.signer) + '<br>' +
+        res.docs.map(d => '<a href="' + esc(d.url) + '" target="_blank">' + esc(d.name) + ' を開く</a>').join('<br>') +
+        '<br>説明が終わったら、下のボタンでサインへ進んでください' +
+        '<div style="margin-top:12px"><button class="btn" id="goSignBtn">この利用者のサインへ進む</button></div>');
+      $('goSignBtn').addEventListener('click', () => { wantFolder = res.folder; clearMsg('issueMsg'); showTab('sign'); });
+      ['fName', 'fZip', 'fAddress', 'fContactName', 'fContactTel', 'fContactMail', 'fTermEnd', 'fAgentRelation', 'fAgentAddress'].forEach(id => $(id).value = '');
+      document.querySelectorAll('input[name=receipt]').forEach(x => x.checked = false);
+      document.querySelector('input[name=signer][value="本人"]').checked = true;
+      $('fAgentSame').checked = false; $('fAgentAddress').disabled = false;
+      $('zipHint').textContent = '';
+      updateIssueState();
+    }).catch(e => msg('issueMsg', 'err', esc(e))).finally(() => busy(false));
+  });
+
+  /* ---------- サイン ---------- */
+  function loadClients() {
+    const keep = $('sClient').value;
+    call('listClientDocs').then(list => {
+      CLIENTS = list;
+      $('sClient').innerHTML = '<option value="">選んでください</option>' +
+        list.map((c, i) => '<option value="' + i + '">' + esc(c.folder) + (c.docs.every(d => d.signed) ? '（サイン済）' : '') + '</option>').join('');
+      if (keep !== '' && list[keep]) $('sClient').value = keep;
+      if (wantFolder) {
+        const i = list.findIndex(c => c.folder === wantFolder);
+        if (i >= 0) $('sClient').value = String(i);
+        wantFolder = '';
+      }
+      renderDocs();
+    }).catch(e => msg('signMsg', 'err', esc(e)));
+  }
+  $('reloadBtn').addEventListener('click', loadClients);
+  $('sClient').addEventListener('change', () => { clearMsg('signMsg'); renderDocs(); });
+
+  function renderDocs() {
+    selectedDoc = null;
+    $('signCard').classList.add('hidden');
+    const c = CLIENTS[$('sClient').value];
+    selectedClient = c || null;
+    if (!c) { $('docCard').classList.add('hidden'); return; }
+    $('docCard').classList.remove('hidden');
+    $('docPicker').innerHTML = c.docs.map((d, i) =>
+      '<button class="doc-pick" data-i="' + i + '"' + (d.signed ? ' disabled' : '') + '>' +
+      '<span style="flex:1">' + esc(d.name) + '</span>' +
+      (d.signed ? '<a class="tag" href="' + esc(d.pdfUrl) + '" target="_blank">サイン済PDF</a>' : '<span class="tag">未サイン</span>') + '</button>').join('');
+    document.querySelectorAll('.doc-pick').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('.doc-pick').forEach(x => x.classList.toggle('on', x === b));
+      selectedDoc = c.docs[Number(b.dataset.i)];
+      $('signerLabel').textContent = c.signerLabel;
+      $('docOpenLine').innerHTML = '<a href="' + esc(selectedDoc.url) + '" target="_blank">書類を開いて内容を確認する</a>';
+      $('signCard').classList.remove('hidden');
+      resetPad();
+    }));
+    // 書類が1つで未サインなら、選ぶ手間をはぶく
+    const open = c.docs.filter(d => !d.signed);
+    if (c.docs.length === 1 && open.length === 1) document.querySelector('.doc-pick').click();
+  }
+
+  // サインパッド
+  function makePad(canvas, ph) {
+    const pad = { canvas, ph, dirty: false };
+    function size() {
+      const r = canvas.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+      if (!r.width) return;
+      canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+      const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+      ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+      pad.dirty = false; ph.style.display = '';
+    }
+    pad.size = size;
+    let drawing = false;
+    function pos(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+    canvas.addEventListener('pointerdown', e => {
+      e.preventDefault(); drawing = true; document.body.classList.add('signing');
+      canvas.setPointerCapture(e.pointerId);
+      const ctx = canvas.getContext('2d'); const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!drawing) return; e.preventDefault();
+      const ctx = canvas.getContext('2d'); const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+      if (!pad.dirty) { pad.dirty = true; ph.style.display = 'none'; updateSignState(); }
+    });
+    const end = () => { drawing = false; document.body.classList.remove('signing'); };
+    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+    return pad;
+  }
+  const pad = makePad($('cvSign'), $('phSign'));
+  function resetPad() { requestAnimationFrame(() => { pad.size(); updateSignState(); }); }
+  document.querySelectorAll('[data-clear]').forEach(b => b.addEventListener('click', () => { pad.size(); updateSignState(); }));
+  function updateSignState() {
+    $('signBtn').disabled = !(selectedDoc && pad.dirty);
+  }
+
+  $('signBtn').addEventListener('click', () => {
+    const p = { docId: selectedDoc.id, sig: pad.canvas.toDataURL('image/png') };
+    busy(true);
+    call('signDocument', p).then(res => {
+      msg('signMsg', 'ok', 'サインを保存しました。<a href="' + esc(res.pdfUrl) + '" target="_blank">' + esc(res.name) + ' を開く</a>');
+      loadClients();
+      window.scrollTo(0, 0);
+    }).catch(e => msg('signMsg', 'err', esc(e))).finally(() => busy(false));
+  });
+</script>
+</body>
+</html>

@@ -41,7 +41,8 @@ function getInitData(officeKey) {
     const sheet = ss.getSheetByName(def.name);
     const rows = [];
     if (sheet && sheet.getLastRow() > 1) {
-      sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues().forEach((r) => {
+      const values = sheet.getRange(1, 1, sheet.getLastRow(), 3).getValues();
+      values.slice(masterDataStart_(values)).forEach((r) => {
         if (String(r[0]).trim()) rows.push({ tag: String(r[0]), value: masterValueToString_(r[1]), note: String(r[2] || "") });
       });
     }
@@ -49,7 +50,21 @@ function getInitData(officeKey) {
   });
 
   const templates = loadTemplates_().map((t, i) => ({ index: i, outName: t.outName }));
-  return { masters: masters, templates: templates, clients: listClients_(officeKey), consentItems: CONSENT_ITEMS, photoChoices: PHOTO_CHOICES };
+  return { masters: masters, templates: templates, clients: listClients_(officeKey), consentItems: CONSENT_ITEMS, photoChoices: PHOTO_CHOICES, form: formConfig_() };
+}
+
+/**
+ * 書類発行の画面の会社ごとの違い(2026-11-27 COCOiRO：らふたすを標準版に載せるときに追加)
+ * CONFIG.hideFields   … 使わない標準の入力欄(contractDate／startDate)
+ * CONFIG.explainerTag … 説明者をマスターの候補(「、」区切り)から選ぶときのタグ名
+ * CONFIG.extraFields  … その会社だけの入力欄。{id, label, type: date|text|tel|email|choice, tag, today, raw, options:[{value, tag}]}
+ */
+function formConfig_() {
+  return {
+    hide: CONFIG.hideFields || [],
+    explainerTag: CONFIG.explainerTag || "",
+    extra: CONFIG.extraFields || []
+  };
 }
 
 /** 利用者フォルダの一覧（事業所ごと。利用者名順） */
@@ -72,7 +87,9 @@ function saveMaster(sheetName, rows) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error("タブが見つかりません: " + sheetName);
-  const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2);
+  const all = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues();
+  const start = masterDataStart_(all) + 1; // シートの行番号(1始まり)
+  const range = sheet.getRange(start, 1, sheet.getLastRow() - start + 1, 2);
   const current = range.getValues();
   const map = {};
   rows.forEach((r) => (map[r.tag] = r.value));
@@ -119,8 +136,21 @@ function generateForClient(form) {
   master["利用者_郵便番号"] = zipDigits.length === 7
     ? toZenkaku_(zipDigits.slice(0, 3) + "-" + zipDigits.slice(3))
     : toZenkaku_(String(form.clientZip || "").trim());
-  master["利用者_住所"] = toZenkaku_(clientAddr);
+  master["利用者_住所"] = toZenkaku_(CONFIG.addressWithZip && master["利用者_郵便番号"] ? "〒" + master["利用者_郵便番号"] + " " + clientAddr : clientAddr);
   master["代理人_住所"] = signer === "代理人" ? toZenkaku_(agentAddr) : "";
+
+  // 会社ごとの入力欄(CONFIG.extraFields)
+  const extra = form.extra || {};
+  (CONFIG.extraFields || []).forEach(function (f) {
+    const val = String(extra[f.id] || "").trim();
+    if (f.type === "choice") {
+      (f.options || []).forEach(function (o) { master[o.tag] = val === o.value ? "■" : "□"; });
+    } else if (f.type === "date") {
+      master[f.tag] = val ? formatJapaneseDate_(val) : "令和　　年　　月　　日";
+    } else {
+      master[f.tag] = f.raw ? val : toZenkaku_(val);
+    }
+  });
 
   // 個人情報同意書の選択（■／□で印字）
   const consents = Array.isArray(form.consents) ? form.consents : [];
@@ -168,8 +198,12 @@ function generateForClient(form) {
       const srcFile = DriveApp.getFileById(extractDocId_(tpl.url));
       const copy = srcFile.makeCopy(newName, docFolder);
       const doc = DocumentApp.openById(copy.getId());
+      const aliases = CONFIG.tagAliases || {}; // テンプレートのタグ名を標準のタグ名に読みかえる
       [doc.getBody(), doc.getHeader(), doc.getFooter()].forEach((section) => {
         if (!section) return;
+        Object.keys(aliases).forEach((from) => {
+          section.replaceText(escapeRegex_("{{" + from + "}}"), "{{" + aliases[from] + "}}");
+        });
         if (signer === "本人") {
           // 本人がサインするときは、代理人の氏名・続柄の欄を空ける
           section.replaceText("\\{\\{署名_代理人\\}\\}（続柄：\\{\\{署名_続柄\\}\\}）", "");
@@ -192,10 +226,11 @@ function generateForClient(form) {
   return { folderUrl: clientFolder.getUrl(), files: files, errors: errors };
 }
 
-/** 事業所の利用者フォルダの置き場所（利用契約書／事業所名） */
+/** 事業所の利用者フォルダの置き場所（利用契約書／事業所名）。flat の事業所は利用契約書の直下 */
 function getOfficeFolder_(officeKey) {
   const office = getOffice_(officeKey);
   const root = DriveApp.getFolderById(OUTPUT_FOLDER_ID);
+  if (office.flat) return root;
   const it = root.getFoldersByName(office.name);
   return it.hasNext() ? it.next() : root.createFolder(office.name);
 }
@@ -204,7 +239,7 @@ function getOfficeFolder_(officeKey) {
 function clientParents_(officeKey) {
   const office = getOffice_(officeKey);
   const list = [getOfficeFolder_(office.key)];
-  if (office.key === DEFAULT_OFFICE) list.push(DriveApp.getFolderById(OUTPUT_FOLDER_ID));
+  if (office.key === DEFAULT_OFFICE && !office.flat) list.push(DriveApp.getFolderById(OUTPUT_FOLDER_ID));
   return list;
 }
 
@@ -285,7 +320,8 @@ function getSignInfo(officeKey, clientName) {
   const list = listClientDocs(officeKey, clientName);
   const signed = list.pdfs.map(function (p) { return p.name; });
   const pending = list.docs.filter(function (d) {
-    return !signed.some(function (n) { return n.indexOf(d.name + "_署名済") === 0; });
+    // 「_サイン済.pdf」はらふたすの標準版より前の名前
+    return !signed.some(function (n) { return n.indexOf(d.name + "_署名済") === 0 || n === d.name + "_サイン済.pdf"; });
   });
   return { pending: pending, pdfs: list.pdfs, meta: getClientMeta_(folder, clientName), remote: remoteStatus_(folder.getId()) };
 }

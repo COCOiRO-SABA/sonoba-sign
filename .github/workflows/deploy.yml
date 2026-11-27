@@ -41,6 +41,7 @@ jobs:
         env:
           # 会社を足したら、ここに1行足す(シークレット名は CLASPRC_<会社名の大文字>)
           CLASPRC_SOLRIAN: ${{ secrets.CLASPRC_SOLRIAN }}
+          CLASPRC_RAFUTASU: ${{ secrets.CLASPRC_RAFUTASU }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             python3 tools/ci_deploy.py "${{ inputs.customer }}" "${{ inputs.target }}" "${{ inputs.description }}"

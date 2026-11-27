@@ -42,6 +42,8 @@
 
   /* --- 2026-11-23 COCOiRO v8：身体拘束の説明・同意書 --- */
   textarea, input[type=datetime-local], input[type=number] { width: 100%; font-size: 17px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-family: inherit; }
+  [hidden] { display: none !important; }
+  input[type=tel], input[type=email] { width: 100%; font-size: 17px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
   textarea { min-height: 84px; resize: vertical; display: block; }
   input[type=datetime-local] { max-width: 100%; min-width: 0; display: block; -webkit-appearance: none; appearance: none; }
   .subhead { font-size: 15px; font-weight: bold; margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -124,10 +126,10 @@
       <p class="hint">新しい利用者さんの契約書類一式をつくります。</p>
       <label>利用者のお名前（フォルダ名になります）</label>
       <input type="text" id="clientName" placeholder="例）山田 太郎">
-      <label>契約日</label>
-      <input type="date" id="contractDate">
-      <label>利用開始予定日（契約書の契約期間に入ります）</label>
-      <input type="date" id="startDate">
+      <div id="f_contractDate"><label>契約日</label>
+      <input type="date" id="contractDate"></div>
+      <div id="f_startDate"><label>利用開始予定日（契約書の契約期間に入ります）</label>
+      <input type="date" id="startDate"></div>
       <label>利用者の郵便番号（7桁を入れると住所が入ります）</label>
       <input type="text" id="clientZip" inputmode="numeric" placeholder="例）509-7204" oninput="onZipInput('clientZip','clientAddr','zipHint')">
       <p class="hint" id="zipHint" style="margin:4px 0 0"></p>
@@ -135,6 +137,7 @@
       <input type="text" id="clientAddr" placeholder="例）岐阜県恵那市長島町永田673-7">
       <label>説明者（スタッフ名・書類の説明者欄に印字／空欄可）</label>
       <input type="text" id="explainerName" placeholder="例）可知 久美子">
+      <select id="explainerSelect" hidden></select>
 <!-- 2026-11-26 COCOiRO v10：説明方法（署名記録に残る） -->
 <label>説明方法（署名記録に残ります。選択肢は事業所情報で変えられます）</label>
 <select id="explainMethod" onchange="onExplainMethod()"></select>
@@ -142,6 +145,8 @@
 <label>説明方法（その他）</label>
 <input type="text" id="explainOther" placeholder="例）ご自宅を訪問して説明">
 </div>
+      <!-- 2026-11-27 COCOiRO：会社ごとの入力欄(config.js の extraFields) -->
+      <div id="extraFields"></div>
 
       <!-- 2026-11-04 COCOiRO：サインする人と同意書の選択は、発行時に職員が入れる -->
       <label>サインする人</label>
@@ -160,10 +165,10 @@
         <button type="button" class="btn gray small" style="margin-top:8px" onclick="copyClientAddr()">利用者と同じ住所にする</button>
       </div>
 
-      <label>個人情報の取り扱い（同意書に印字されます。ご本人・ご家族に確認し、「しない」ものだけチェックを外してください）</label>
-      <div id="consentList"></div>
-      <label>写真の取り扱い（同意書に印字されます）</label>
-      <select id="photoChoice"></select>
+      <div id="consentBox"><label>個人情報の取り扱い（同意書に印字されます。ご本人・ご家族に確認し、「しない」ものだけチェックを外してください）</label>
+      <div id="consentList"></div></div>
+      <div id="photoBox"><label>写真の取り扱い（同意書に印字されます）</label>
+      <select id="photoChoice"></select></div>
 
       <label>つくる書類（チェックを外すと除外）</label>
       <div id="templateList"></div>
@@ -287,6 +292,7 @@ renderExplainMethods(data.masters);
   const t = todayISO();
   document.getElementById("contractDate").value = t;
   document.getElementById("startDate").value = t;
+  applyFormConfig(data.form || {}, data.masters);
   busy(false);
 }
 function todayISO() {
@@ -365,6 +371,51 @@ function renderConsents(items, photos) {
   const sel = document.getElementById("photoChoice");
   sel.innerHTML = photos.map((p, i) => '<option value="' + i + '">' + esc(p) + "</option>").join("");
 }
+/* --- 会社ごとの入力欄（2026-11-27 COCOiRO） --- */
+let FORM = { hide: [], explainerTag: "", extra: [] };
+function applyFormConfig(form, masters) {
+  FORM = { hide: form.hide || [], explainerTag: form.explainerTag || "", extra: form.extra || [] };
+  FORM.hide.forEach(id => { const el = document.getElementById("f_" + id); if (el) el.hidden = true; });
+  document.getElementById("consentBox").hidden = !(DATA.consentItems || []).length;
+  document.getElementById("photoBox").hidden = !(DATA.photoChoices || []).length;
+  // 説明者をマスターの候補から選ぶ
+  if (FORM.explainerTag) {
+    let names = [];
+    (masters || []).forEach(m => m.rows.forEach(r => { if (r.tag === FORM.explainerTag) names = String(r.value || "").split(/[、,，]/).map(x => x.trim()).filter(Boolean); }));
+    if (names.length) {
+      const sel = document.getElementById("explainerSelect");
+      sel.innerHTML = names.map(n => '<option value="' + esc(n) + '">' + esc(n) + "</option>").join("");
+      sel.hidden = false;
+      document.getElementById("explainerName").hidden = true;
+      document.getElementById("explainerName").previousElementSibling.textContent = "説明者（書類の説明者欄に印字。候補は事業所情報で変えられます）";
+    }
+  }
+  const wrap = document.getElementById("extraFields");
+  wrap.innerHTML = "";
+  FORM.extra.forEach(f => {
+    let h = '<label>' + esc(f.label) + '</label>';
+    if (f.type === "choice") {
+      (f.options || []).forEach(o => {
+        h += '<label class="checkrow"><input type="radio" name="x_' + esc(f.id) + '" value="' + esc(o.value) + '">' + esc(o.label || o.value) + '</label>';
+      });
+    } else {
+      const type = ({ date: "date", tel: "tel", email: "email" })[f.type] || "text";
+      h += '<input type="' + type + '" id="x_' + esc(f.id) + '"' + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : "") + '>';
+    }
+    const div = document.createElement("div");
+    div.innerHTML = h;
+    wrap.appendChild(div);
+    if (f.type === "date" && f.today) document.getElementById("x_" + f.id).value = todayISO();
+  });
+}
+function extraValues() {
+  const out = {};
+  FORM.extra.forEach(f => {
+    if (f.type === "choice") out[f.id] = (document.querySelector('input[name="x_' + f.id + '"]:checked') || {}).value || "";
+    else out[f.id] = (document.getElementById("x_" + f.id).value || "").trim();
+  });
+  return out;
+}
 function onSignerChange() {
   const v = (document.querySelector('input[name="signer"]:checked') || {}).value;
   document.getElementById("agentBox").hidden = v !== "代理人";
@@ -410,7 +461,9 @@ function generateDocs() {
   const idx = Array.from(document.querySelectorAll("#templateList input:checked")).map(el => Number(el.value));
   const form = {
     clientName: v("clientName"), contractDate: v("contractDate"), startDate: v("startDate"),
-    clientZip: v("clientZip"), clientAddr: v("clientAddr"), explainerName: v("explainerName"), explainMethod: explainMethodValue(),
+    clientZip: v("clientZip"), clientAddr: v("clientAddr"),
+    explainerName: document.getElementById("explainerSelect").hidden ? v("explainerName") : v("explainerSelect"),
+    explainMethod: explainMethodValue(), extra: extraValues(),
     signer: signer, agentName: v("agentName"), agentRelation: v("agentRelation"), agentAddr: v("agentAddr"),
     consents: Array.from(document.querySelectorAll("#consentList input")).map(el => el.checked),
     photo: Number(document.getElementById("photoChoice").value || 0),

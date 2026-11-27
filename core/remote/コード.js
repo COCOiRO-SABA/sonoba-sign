@@ -117,7 +117,7 @@ function folderInfo_(folderId) {
   const byName = function (a, b) { return a.name.localeCompare(b.name, "ja"); };
   docs.sort(byName);
   const pending = docs.filter(function (d) {
-    return !pdfs.some(function (p) { return p.name.indexOf(d.name + "_署名済") === 0; });
+    return !pdfs.some(function (p) { return p.name.indexOf(d.name + "_署名済") === 0 || p.name === d.name + "_サイン済.pdf"; });
   });
   return {
     folder: folder, pending: pending, pdfs: pdfs,
