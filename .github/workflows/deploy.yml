@@ -39,7 +39,8 @@ jobs:
           for f in dist/*/*/*.js; do node --check "$f"; done
       - name: 配布
         env:
-          ALL_SECRETS: ${{ toJSON(secrets) }}
+          # 会社を足したら、ここに1行足す(シークレット名は CLASPRC_<会社名の大文字>)
+          CLASPRC_SOLRIAN: ${{ secrets.CLASPRC_SOLRIAN }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             python3 tools/ci_deploy.py "${{ inputs.customer }}" "${{ inputs.target }}" "${{ inputs.description }}"

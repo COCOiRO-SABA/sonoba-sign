@@ -25,5 +25,5 @@
 ## 新しい会社を足す
 
 1. `customers/<会社>/customer.json`・`app/config.js`・`remote/config.js` を作る(solrian を参考に)
-2. その会社の作業アカウントで clasp にログインし、`~/.clasprc.json` の中身をシークレット `CLASPRC_<会社名の大文字>` に登録
+2. その会社の作業アカウントで clasp にログインし、`~/.clasprc.json` の中身をシークレット `CLASPRC_<会社名の大文字>` に登録し、`.github/workflows/deploy.yml` の env に1行足す
 3. main に上げてテスト環境で確認 → 本番
