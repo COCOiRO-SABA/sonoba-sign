@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root { --blue: #1a73e8; --green: #188038; --bg: #f6f8fb; --card: #fff; --line: #dfe3e8; --text: #202124; --sub: #5f6368; --red: #c5221f; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); touch-action: manipulation; }
+  header { background: var(--blue); color: #fff; padding: 16px 20px; }
+  header .t { font-size: 19px; font-weight: bold; }
+  header small { display: block; font-size: 12px; opacity: .85; margin-top: 2px; }
+  main { padding: 16px; max-width: 640px; margin: 0 auto 40px; }
+  .steps { display: flex; gap: 6px; margin: 4px 0 14px; }
+  .steps div { flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
+  .steps div.on { background: var(--blue); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+  h2 { margin: 0 0 8px; font-size: 18px; }
+  p { line-height: 1.7; }
+  .hint { font-size: 14px; color: var(--sub); margin: 0 0 10px; line-height: 1.7; }
+  label { display: block; font-size: 14px; color: var(--sub); margin: 14px 0 6px; }
+  input[type=date] { width: 100%; max-width: 100%; min-width: 0; display: block; font-size: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; -webkit-appearance: none; appearance: none; }
+  #code { width: 100%; font-size: 34px; letter-spacing: 18px; text-align: center; padding: 14px 10px 14px 28px; border: 2px solid var(--line); border-radius: 12px; font-family: inherit; }
+  #code:focus { outline: none; border-color: var(--blue); }
+  .btn { display: block; width: 100%; border: none; border-radius: 12px; padding: 16px; font-size: 17px; font-weight: bold; color: #fff; background: var(--blue); margin-top: 16px; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+  .btn.green { background: var(--green); }
+  .btn.gray { background: #9aa0a6; }
+  .btn.line { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
+  .btn:disabled { opacity: .5; }
+  .who { background: #e8f0fe; border-radius: 10px; padding: 12px 14px; font-size: 15px; line-height: 1.7; }
+  .doc { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 4px; border-bottom: 1px solid var(--line); font-size: 16px; }
+  .doc:last-child { border-bottom: none; }
+  .doc button { flex: none; border: 1px solid var(--blue); color: var(--blue); background: #fff; border-radius: 20px; padding: 8px 14px; font-size: 14px; font-weight: bold; }
+  .doc .seen { color: var(--green); font-size: 13px; margin-left: 6px; }
+  #signCanvasWrap { border: 2px dashed var(--line); border-radius: 12px; background: #fff; position: relative; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overflow: hidden; }
+  #signCanvas { width: 100%; height: 200px; display: block; touch-action: none; }
+  #signGuide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #c4c9cf; font-size: 20px; pointer-events: none; }
+  .row2 { display: flex; gap: 10px; }
+  .row2 .btn { margin-top: 10px; }
+  .row2 .btn.gray { flex: 0 0 34%; }
+  body.signing { -webkit-user-select: none; user-select: none; }
+  .err { background: #fce8e6; border: 1px solid #f5c6c1; color: var(--red); border-radius: 10px; padding: 12px 14px; margin-top: 12px; font-size: 15px; line-height: 1.7; }
+  .ok { text-align: center; }
+  .ok .mark { font-size: 54px; }
+  .foot { text-align: center; font-size: 12px; color: var(--sub); margin-top: 20px; }
+  /* 書類を見る画面 */
+  #viewer { display: none; position: fixed; inset: 0; background: #525659; z-index: 40; flex-direction: column; }
+  #viewer .bar { display: flex; align-items: center; justify-content: space-between; background: #323639; color: #fff; padding: 10px 14px; font-size: 15px; }
+  #viewer .bar button { border: none; background: #fff; color: var(--text); border-radius: 18px; padding: 8px 16px; font-size: 15px; font-weight: bold; }
+  #pages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px; touch-action: pan-y pinch-zoom; }
+  #pages canvas { display: block; width: 100%; background: #fff; margin: 0 auto 10px; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  #overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.8); z-index: 50; align-items: center; justify-content: center; flex-direction: column; }
+  #overlay .spin { width: 44px; height: 44px; border: 5px solid var(--line); border-top-color: var(--blue); border-radius: 50%; animation: sp 1s linear infinite; }
+  #overlay p { font-size: 16px; color: var(--sub); }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header><div class="t" id="hTitle">書類へのサイン</div><small id="hSub">そのばサイン</small></header>
+<main>
+  <div class="steps"><div id="st1" class="on"></div><div id="st2"></div><div id="st3"></div></div>
+
+  <!-- ① 確認番号 -->
+  <section id="s-code" class="card">
+    <h2>確認番号を入力してください</h2>
+    <p class="hint">事業所からお伝えした、4桁の番号です。</p>
+    <input type="tel" id="code" inputmode="numeric" maxlength="4" autocomplete="one-time-code" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
+    <button class="btn" onclick="openWithCode()">次へ</button>
+    <div id="codeErr"></div>
+  </section>
+
+  <!-- ② 書類の確認 -->
+  <section id="s-docs" hidden>
+    <div class="card">
+      <h2>書類の内容をご確認ください</h2>
+      <p class="hint">「開く」で内容を確認できます。確認が終わったら、下の「サインへ進む」を押してください。</p>
+      <div class="who" id="whoBox"></div>
+      <div id="docList" style="margin-top:6px"></div>
+      <div id="docErr"></div>
+    </div>
+    <button class="btn" onclick="toSign()">サインへ進む</button>
+  </section>
+
+  <!-- ③ 日付とサイン -->
+  <section id="s-sign" hidden>
+    <div class="card">
+      <h2>日付を選んでサインしてください</h2>
+      <p class="hint" id="signHint">1回のサインで、すべての書類に署名されます。</p>
+      <label>署名日</label>
+      <input type="date" id="signDate">
+      <label>サイン(指でなぞってください)</label>
+      <div id="signCanvasWrap"><canvas id="signCanvas"></canvas><div id="signGuide">ここにサイン</div></div>
+      <div class="row2">
+        <button class="btn gray" onclick="clearSign()">書き直す</button>
+        <button class="btn green" id="btnSign" onclick="submitSign()">署名する</button>
+      </div>
+      <div id="signErr"></div>
+    </div>
+    <button class="btn line" onclick="show('docs')">書類の確認にもどる</button>
+  </section>
+
+  <!-- ④ 完了 -->
+  <section id="s-done" hidden>
+    <div class="card ok">
+      <div class="mark">✅</div>
+      <h2>署名が完了しました</h2>
+      <p class="hint">ありがとうございました。署名した書類は事業所で保管します。</p>
+    </div>
+    <div class="card">
+      <h2 style="font-size:16px">控え(署名済みの書類)</h2>
+      <p class="hint">必要な方は、24時間以内に開いて保存してください。</p>
+      <div id="copyList"></div>
+      <div id="copyErr"></div>
+    </div>
+    <p class="foot">このページは閉じてかまいません。</p>
+  </section>
+
+  <p class="foot" id="footTel"></p>
+</main>
+
+<div id="viewer"><div class="bar"><span id="vTitle"></span><button onclick="closeViewer()">閉じる</button></div><div id="pages"></div></div>
+<div id="overlay"><div class="spin"></div><p id="overlayMsg">お待ちください…</p></div>
+
+<script>
+const TOKEN = "<?= token ?>";
+let CODE = "", INFO = null, SEEN = {};
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function busy(on, msg) { $("overlayMsg").textContent = msg || "お待ちください…"; $("overlay").style.display = on ? "flex" : "none"; }
+function errMsg(e) { return String((e && e.message) || e).replace(/^Exception:\s*/, "").replace(/^Error:\s*/, ""); }
+function show(key) {
+  ["code", "docs", "sign", "done"].forEach(k => ($("s-" + k).hidden = k !== key));
+  const step = { code: 1, docs: 2, sign: 3, done: 3 }[key];
+  [1, 2, 3].forEach(i => $("st" + i).classList.toggle("on", i <= step));
+  window.scrollTo(0, 0);
+  if (key === "sign") setTimeout(resizeCanvas, 60);
+}
+function todayISO() { const d = new Date(), z = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); }
+
+window.addEventListener("load", () => {
+  $("signDate").value = todayISO();
+  setupCanvas();
+  if (!TOKEN) { $("codeErr").innerHTML = '<div class="err">このリンクは使えません。事業所から届いたリンクをもう一度開いてください。</div>'; }
+});
+
+/* ① 確認番号 */
+function openWithCode() {
+  const c = $("code").value;
+  $("codeErr").innerHTML = "";
+  if (c.length !== 4) { $("codeErr").innerHTML = '<div class="err">4桁の番号を入れてください。</div>'; return; }
+  busy(true, "確認しています…");
+  google.script.run.withSuccessHandler((res) => {
+    busy(false);
+    CODE = c; INFO = res; SEEN = {};
+    $("hTitle").textContent = res.officeName;
+    $("hSub").textContent = res.clientName + " 様の書類へのサイン";
+    if (res.officePhone) $("footTel").textContent = "ご不明な点は " + res.officeName + "(" + res.officePhone + ")まで";
+    $("whoBox").innerHTML = "サインする方：<b>" + esc(res.signerLabel) + "</b>" + (res.explainMethod ? "<br>説明：" + esc(res.explainMethod) : "");
+    renderDocs();
+    show("docs");
+  }).withFailureHandler((e) => {
+    busy(false);
+    $("codeErr").innerHTML = '<div class="err">' + esc(errMsg(e)) + "</div>";
+  }).remoteOpen(TOKEN, c, navigator.userAgent);
+}
+
+/* ② 書類 */
+function renderDocs() {
+  $("docList").innerHTML = INFO.docs.map(d =>
+    '<div class="doc"><span>📄 ' + esc(d.name) + (SEEN[d.index] ? '<span class="seen">確認済み</span>' : "") + '</span><button onclick="openDoc(' + d.index + ')">開く</button></div>').join("");
+  $("signHint").textContent = "1回のサインで、" + INFO.docs.length + "件の書類すべてに署名されます。";
+}
+function openDoc(i) {
+  busy(true, "書類を開いています…");
+  google.script.run.withSuccessHandler((res) => { SEEN[i] = true; renderDocs(); showPdf(res); })
+    .withFailureHandler((e) => { busy(false); alertBox("docErr", e); })
+    .remoteDocPdf(TOKEN, CODE, i);
+}
+function toSign() { show("sign"); }
+
+/* 書類を見る(PDFをページごとの画像にして表示) */
+function b64ToBytes(b64) { const bin = atob(b64), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
+async function showPdf(res) {
+  const bytes = b64ToBytes(res.b64);
+  if (!window.pdfjsLib) { busy(false); downloadPdf(res.name, bytes); return; }
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const box = $("pages");
+    box.innerHTML = "";
+    $("vTitle").textContent = res.name;
+    $("viewer").style.display = "flex";
+    const width = Math.min(box.clientWidth - 20, 900);
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const page = await pdf.getPage(n);
+      const vp1 = page.getViewport({ scale: 1 });
+      const scale = (width / vp1.width) * (window.devicePixelRatio || 1);
+      const vp = page.getViewport({ scale: scale });
+      const c = document.createElement("canvas");
+      c.width = vp.width; c.height = vp.height;
+      box.appendChild(c);
+      await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+      if (n === 1) busy(false);
+    }
+    busy(false);
+  } catch (e) {
+    busy(false); closeViewer(); downloadPdf(res.name, bytes);
+  }
+}
+function closeViewer() { $("viewer").style.display = "none"; $("pages").innerHTML = ""; }
+function downloadPdf(name, bytes) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name.endsWith(".pdf") ? name : name + ".pdf"; a.target = "_blank";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function alertBox(id, e) { $(id).innerHTML = '<div class="err">' + esc(errMsg(e)) + "</div>"; }
+
+/* ③ サイン */
+let canvas, ctx, drawing = false, hasInk = false;
+function setupCanvas() {
+  canvas = $("signCanvas"); ctx = canvas.getContext("2d");
+  window.addEventListener("resize", resizeCanvas);
+  const pos = (ev) => { const r = canvas.getBoundingClientRect(), p = ev.touches ? ev.touches[0] : ev; return { x: (p.clientX - r.left) * (canvas.width / r.width), y: (p.clientY - r.top) * (canvas.height / r.height) }; };
+  const start = (ev) => { ev.preventDefault(); drawing = true; document.body.classList.add("signing"); const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  const move = (ev) => { if (!drawing) return; ev.preventDefault(); const p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke(); hasInk = true; $("signGuide").style.display = "none"; };
+  const end = () => { drawing = false; document.body.classList.remove("signing"); };
+  canvas.addEventListener("mousedown", start); canvas.addEventListener("mousemove", move); window.addEventListener("mouseup", end);
+  canvas.addEventListener("touchstart", start, { passive: false }); canvas.addEventListener("touchmove", move, { passive: false }); canvas.addEventListener("touchend", end);
+}
+function resizeCanvas() {
+  const r = canvas.getBoundingClientRect();
+  if (!r.width) return;
+  const s = window.devicePixelRatio || 1;
+  canvas.width = r.width * s; canvas.height = 200 * s;
+  ctx.lineWidth = 3.5 * s; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1b1b1b";
+  hasInk = false; $("signGuide").style.display = "flex";
+}
+function clearSign() { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.beginPath(); hasInk = false; $("signGuide").style.display = "flex"; }
+function getSignatureDataUrl() {
+  const w = canvas.width, h = canvas.height, px = ctx.getImageData(0, 0, w, h).data;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (px[(y * w + x) * 4 + 3] > 0) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+  if (maxX < 0) return canvas.toDataURL("image/png");
+  const pad = Math.round(8 * (window.devicePixelRatio || 1));
+  minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad); maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+  const c = document.createElement("canvas"); c.width = maxX - minX + 1; c.height = maxY - minY + 1;
+  c.getContext("2d").drawImage(canvas, minX, minY, c.width, c.height, 0, 0, c.width, c.height);
+  return c.toDataURL("image/png");
+}
+function submitSign() {
+  $("signErr").innerHTML = "";
+  if (!$("signDate").value) { $("signErr").innerHTML = '<div class="err">署名日を選んでください。</div>'; return; }
+  if (!hasInk) { $("signErr").innerHTML = '<div class="err">サイン欄にサインしてください。</div>'; return; }
+  $("btnSign").disabled = true;
+  busy(true, "署名しています…(1分ほどかかります)");
+  google.script.run.withSuccessHandler((res) => {
+    busy(false);
+    $("copyList").innerHTML = res.files.map(f => '<div class="doc"><span>🧾 ' + esc(f.name) + '</span><button onclick="openCopy(' + f.index + ')">開く</button></div>').join("");
+    show("done");
+  }).withFailureHandler((e) => {
+    busy(false); $("btnSign").disabled = false;
+    $("signErr").innerHTML = '<div class="err">' + esc(errMsg(e)) + "</div>";
+  }).remoteSign(TOKEN, CODE, getSignatureDataUrl(), $("signDate").value, navigator.userAgent);
+}
+
+/* ④ 控え */
+function openCopy(i) {
+  busy(true, "控えを開いています…");
+  google.script.run.withSuccessHandler((res) => showPdf(res))
+    .withFailureHandler((e) => { busy(false); alertBox("copyErr", e); })
+    .remoteSignedPdf(TOKEN, CODE, i);
+}
+</script>
+</body>
+</html>

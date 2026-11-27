@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<style>
+  :root {
+    --blue: #1a73e8; --green: #188038; --orange: #e8710a; --gray: #616161;
+    --bg: #f6f8fb; --card: #ffffff; --line: #dfe3e8; --text: #202124; --sub: #5f6368;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); padding-bottom: 90px; }
+
+  header { background: var(--blue); color: #fff; padding: 16px 20px; font-size: 20px; font-weight: bold; }
+  header small { display: block; font-size: 12px; font-weight: normal; opacity: .85; margin-top: 2px; }
+
+  /* 下部タブナビ（タブレット親指操作向け） */
+  nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff; border-top: 1px solid var(--line); z-index: 10; }
+  nav button { flex: 1; border: none; background: none; padding: 12px 4px 10px; font-size: 15px; color: var(--sub); }
+  nav button .ico { display: block; font-size: 24px; margin-bottom: 2px; }
+  nav button.active { color: var(--blue); font-weight: bold; border-top: 3px solid var(--blue); margin-top: -1px; }
+
+  main { padding: 16px; max-width: 860px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { margin: 0 0 6px; font-size: 17px; }
+  .hint { font-size: 13px; color: var(--sub); margin: 0 0 12px; }
+
+  label { display: block; font-size: 13px; color: var(--sub); margin: 12px 0 4px; }
+  input[type=text], input[type=date], select {
+    width: 100%; font-size: 17px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff;
+  }
+  input[type=text]:focus, select:focus { outline: 2px solid var(--blue); border-color: transparent; }
+
+  .btn { display: inline-block; width: 100%; border: none; border-radius: 10px; padding: 15px; font-size: 17px; font-weight: bold; color: #fff; background: var(--blue); margin-top: 14px; }
+  .btn.green { background: var(--green); }
+  .btn.gray { background: #9aa0a6; }
+  .btn.small { width: auto; padding: 10px 18px; font-size: 14px; margin-top: 0; }
+  .btn:disabled { opacity: .5; }
+
+  /* --- 2026-11-23 COCOiRO v8：身体拘束の説明・同意書 --- */
+  textarea, input[type=datetime-local], input[type=number] { width: 100%; font-size: 17px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-family: inherit; }
+  textarea { min-height: 84px; resize: vertical; display: block; }
+  input[type=datetime-local] { max-width: 100%; min-width: 0; display: block; -webkit-appearance: none; appearance: none; }
+  .subhead { font-size: 15px; font-weight: bold; margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
+  .radiorow { display: flex; flex-wrap: wrap; gap: 8px; }
+  .radiorow label { display: flex; align-items: center; margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px; color: var(--text); background: #fff; }
+  .radiorow input { width: 22px; height: 22px; margin: 0 8px 0 0; }
+
+  /* 事業所情報：サービスごとのアコーディオン */
+  details { border: 1px solid var(--line); border-radius: 12px; background: #fff; margin-bottom: 12px; overflow: hidden; }
+  summary { list-style: none; cursor: pointer; padding: 15px 16px; font-size: 16px; font-weight: bold; color: #fff; }
+  summary::-webkit-details-marker { display: none; }
+  .fields { padding: 8px 16px 16px; }
+  .fieldrow input { background: #fff8c5; }
+  .fieldnote { font-size: 11px; color: #80868b; margin-top: 2px; }
+
+  /* 書類発行：チェックリスト */
+  .checkrow { display: flex; align-items: center; padding: 12px 6px; border-bottom: 1px solid var(--line); font-size: 16px; }
+  .checkrow:last-child { border-bottom: none; }
+  .checkrow input { width: 24px; height: 24px; margin-right: 12px; }
+
+  /* サイン */
+  #signCanvasWrap { border: 2px dashed var(--line); border-radius: 12px; background: #fff; position: relative; }
+  #signCanvas { width: 100%; height: 220px; display: block; border-radius: 12px; touch-action: none; }
+  #signGuide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #c4c9cf; font-size: 20px; pointer-events: none; }
+  .signactions { display: flex; gap: 10px; margin-top: 10px; }
+  .signactions .btn { margin-top: 0; }
+
+  .doclist a { display: block; padding: 12px 6px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--blue); text-decoration: none; }
+  .doclist a:last-child { border-bottom: none; }
+
+  /* トースト・ローディング */
+  #overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.75); z-index: 20; align-items: center; justify-content: center; flex-direction: column; }
+  #overlay .spin { width: 44px; height: 44px; border: 5px solid var(--line); border-top-color: var(--blue); border-radius: 50%; animation: sp 1s linear infinite; }
+  #overlay p { font-size: 16px; color: var(--sub); }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  #toast { display: none; position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%); background: #323639; color: #fff; padding: 12px 22px; border-radius: 24px; font-size: 15px; z-index: 30; max-width: 90%; }
+  .result { background: #e6f4ea; border: 1px solid #b7e1c3; border-radius: 10px; padding: 12px; margin-top: 12px; font-size: 14px; }
+  .result.err { background: #fce8e6; border-color: #f5c6c1; }
+  .result a { color: var(--blue); }
+
+  /* --- 2026-10-21 タブレット操作の調整（COCOiRO） --- */
+  body { touch-action: manipulation; }
+  input[type=date] { max-width: 100%; min-width: 0; display: block; -webkit-appearance: none; appearance: none; }
+  input[type=date]::-webkit-date-and-time-value { text-align: left; }
+  #signCanvasWrap { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overflow: hidden; }
+  #signCanvas { -webkit-user-select: none; user-select: none; }
+  .btn, .signactions, label { -webkit-user-select: none; user-select: none; }
+  .btn { touch-action: manipulation; }
+  body.signing { -webkit-user-select: none; user-select: none; }
+/* --- 2026-11-26 COCOiRO v10：遠隔サイン --- */
+.rmhint { font-size: 12px; color: var(--sub); margin-top: 4px; line-height: 1.6; }
+.rmstate { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: #f1f3f4; font-size: 14px; }
+.rmstate.wait { background: #fef7e0; }
+.rmstate.done { background: #e6f4ea; }
+.rmcode { font-size: 20px; font-weight: bold; letter-spacing: 4px; }
+.rmcode.big { font-size: 34px; letter-spacing: 10px; margin: 4px 0; }
+.rmbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.rmissued { margin-top: 12px; padding: 12px; border: 1px solid #c6dafc; border-radius: 10px; background: #f8fbff; font-size: 14px; }
+.rmissued textarea { min-height: 220px; font-size: 14px; margin: 8px 0; }
+</style>
+</head>
+<body>
+<header>そのばサイン｜<?= officeName ?><small><?= headerNote ?> ／ 契約書類の作成と電子サイン ／ サポート：COCOiRO</small></header>
+
+<main>
+  <!-- ================= ① 事業所情報 ================= -->
+  <section id="page-master" class="page active">
+    <div class="card">
+      <h2>🏢 事業所情報</h2>
+      <p class="hint">黄色い欄だけ直して「保存」を押してください。次に発行する書類から反映されます。</p>
+    </div>
+    <div id="masterList"></div>
+  </section>
+
+  <!-- ================= ② 書類発行 ================= -->
+  <section id="page-generate" class="page">
+<!--@@OPTION:form-->
+    <div class="card">
+      <h2>📑 契約書類一式</h2>
+      <p class="hint">新しい利用者さんの契約書類一式をつくります。</p>
+      <label>利用者のお名前（フォルダ名になります）</label>
+      <input type="text" id="clientName" placeholder="例）山田 太郎">
+      <label>契約日</label>
+      <input type="date" id="contractDate">
+      <label>利用開始予定日（契約書の契約期間に入ります）</label>
+      <input type="date" id="startDate">
+      <label>利用者の郵便番号（7桁を入れると住所が入ります）</label>
+      <input type="text" id="clientZip" inputmode="numeric" placeholder="例）509-7204" oninput="onZipInput('clientZip','clientAddr','zipHint')">
+      <p class="hint" id="zipHint" style="margin:4px 0 0"></p>
+      <label>利用者の住所</label>
+      <input type="text" id="clientAddr" placeholder="例）岐阜県恵那市長島町永田673-7">
+      <label>説明者（スタッフ名・書類の説明者欄に印字／空欄可）</label>
+      <input type="text" id="explainerName" placeholder="例）可知 久美子">
+<!-- 2026-11-26 COCOiRO v10：説明方法（署名記録に残る） -->
+<label>説明方法（署名記録に残ります。選択肢は事業所情報で変えられます）</label>
+<select id="explainMethod" onchange="onExplainMethod()"></select>
+<div id="explainOtherBox" hidden>
+<label>説明方法（その他）</label>
+<input type="text" id="explainOther" placeholder="例）ご自宅を訪問して説明">
+</div>
+
+      <!-- 2026-11-04 COCOiRO：サインする人と同意書の選択は、発行時に職員が入れる -->
+      <label>サインする人</label>
+      <label class="checkrow"><input type="radio" name="signer" value="本人" checked onchange="onSignerChange()">利用者本人</label>
+      <label class="checkrow"><input type="radio" name="signer" value="代理人" onchange="onSignerChange()">代理人（ご家族など）</label>
+      <div id="agentBox" hidden>
+        <label>代理人のお名前</label>
+        <input type="text" id="agentName" placeholder="例）山田 花子">
+        <label>続柄</label>
+        <input type="text" id="agentRelation" placeholder="例）長女">
+        <label>代理人の郵便番号</label>
+        <input type="text" id="agentZip" inputmode="numeric" placeholder="例）509-7204" oninput="onZipInput('agentZip','agentAddr','agentZipHint')">
+        <p class="hint" id="agentZipHint" style="margin:4px 0 0"></p>
+        <label>代理人の住所</label>
+        <input type="text" id="agentAddr">
+        <button type="button" class="btn gray small" style="margin-top:8px" onclick="copyClientAddr()">利用者と同じ住所にする</button>
+      </div>
+
+      <label>個人情報の取り扱い（同意書に印字されます。ご本人・ご家族に確認し、「しない」ものだけチェックを外してください）</label>
+      <div id="consentList"></div>
+      <label>写真の取り扱い（同意書に印字されます）</label>
+      <select id="photoChoice"></select>
+
+      <label>つくる書類（チェックを外すと除外）</label>
+      <div id="templateList"></div>
+      <button class="btn" id="btnGenerate" onclick="generateDocs()">書類一式をつくる</button>
+      <div id="generateResult"></div>
+    </div>
+  </section>
+
+  <!-- ================= ③ サイン ================= -->
+  <section id="page-sign" class="page">
+    <div class="card">
+      <h2>✍️ サイン</h2>
+      <p class="hint">利用者さんを選ぶ → 書類の内容を確認してもらう → 署名日を選んでサインしてもらう。1回のサインで、まとめて署名されます。</p>
+      <label>利用者</label>
+      <select id="signClient" onchange="loadDocs()"><option value="">選んでください</option></select>
+      <div id="signStep2" hidden>
+        <label>サインする書類（タップで開いて内容を確認）</label>
+        <div class="doclist" id="pendingList">－</div>
+        <div class="result" id="signerInfo" style="background:#e8f0fe;border-color:#c6dafc;"></div>
+        <div class="result" id="keikaBox" hidden style="background:#fff;border-color:var(--line);"></div>
+<div class="result" id="remoteBox" hidden style="background:#fff;border-color:var(--line);"></div>
+      </div>
+
+      <div id="signStep3" hidden>
+        <label>署名日</label>
+        <input type="date" id="signDate">
+        <label>サイン（指またはタッチペンで）</label>
+        <div id="signCanvasWrap">
+          <canvas id="signCanvas"></canvas>
+          <div id="signGuide">ここにサイン</div>
+        </div>
+        <div class="signactions">
+          <button class="btn gray small" onclick="clearSign()">書き直す</button>
+          <button class="btn green" id="btnSign" onclick="submitSign()">この内容で署名を確定する</button>
+        </div>
+      </div>
+      <div id="signResult"></div>
+
+    <div class="card" id="signPdfCard" hidden style="margin-top:16px;">
+        <h2 style="font-size:15px;">🗂 この利用者の署名済みPDF</h2>
+        <div class="doclist" id="pdfList">－</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button id="tab-master" class="active" onclick="showPage('master')"><span class="ico">🏢</span>事業所情報</button>
+  <button id="tab-generate" onclick="showPage('generate')"><span class="ico">📄</span>書類発行</button>
+  <button id="tab-sign" onclick="showPage('sign')"><span class="ico">✍️</span>サイン</button>
+</nav>
+
+<div id="overlay"><div class="spin"></div><p id="overlayMsg">処理中です…</p></div>
+<div id="toast"></div>
+
+<script>
+/* ================= 共通 ================= */
+let DATA = null;
+// 2026-11-04 COCOiRO v7：リンクの ?office= で決まる事業所（サーバーから受け取る）
+const OFFICE = "<?= officeKey ?>";
+
+function showPage(key) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.getElementById("page-" + key).classList.add("active");
+  document.getElementById("tab-" + key).classList.add("active");
+  if (key === "sign") setTimeout(resizeCanvas, 60); // 非表示中は幅0のため、表示後に初期化
+  updateSignStage();
+  // 2026-10-22 COCOiRO：前の画面のスクロール位置が残るので最上部に戻す
+  window.scrollTo(0, 0);
+  if (document.documentElement) document.documentElement.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+  const mainEl = document.querySelector("main");
+  if (mainEl) mainEl.scrollTop = 0;
+}
+
+/* --- 利用者を選んだら、サインする書類とサイン欄を出す（2026-11-04 COCOiRO：1回のサインでまとめて署名） --- */
+let SIGN_PENDING = 0;
+let STEP3_VISIBLE = false;
+function updateSignStage() {
+  const c = document.getElementById("signClient");
+  if (!c) return;
+  const hasClient = !!c.value;
+  const s2 = document.getElementById("signStep2");
+  const s3 = document.getElementById("signStep3");
+  const pc = document.getElementById("signPdfCard");
+  if (s2) s2.hidden = !hasClient;
+  if (pc) pc.hidden = !hasClient;
+  const show3 = hasClient && SIGN_PENDING > 0;
+  if (s3) s3.hidden = !show3;
+  if (show3 && !STEP3_VISIBLE) setTimeout(resizeCanvas, 60); // 表示されてからサイン欄の大きさを決める
+  STEP3_VISIBLE = show3;
+}
+function busy(on, msg) {
+  document.getElementById("overlayMsg").textContent = msg || "処理中です…";
+  document.getElementById("overlay").style.display = on ? "flex" : "none";
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  setTimeout(() => (t.style.display = "none"), 2600);
+}
+function fail(e) { busy(false); toast("エラー：" + (e.message || e)); }
+
+/* ================= 初期読み込み ================= */
+window.addEventListener("load", () => {
+  const _d = new Date(), _z = n => String(n).padStart(2, "0");
+  document.getElementById("signDate").value = _d.getFullYear() + "-" + _z(_d.getMonth() + 1) + "-" + _z(_d.getDate());
+  busy(true, "読み込み中です…");
+  google.script.run.withSuccessHandler(init).withFailureHandler(fail).getInitData(OFFICE);
+  setupCanvas();
+});
+
+function init(data) {
+  DATA = data;
+  renderMasters(data.masters);
+  renderTemplates(data.templates);
+  renderConsents(data.consentItems || [], data.photoChoices || []);
+renderExplainMethods(data.masters);
+  renderClients(data.clients);
+  const t = todayISO();
+  document.getElementById("contractDate").value = t;
+  document.getElementById("startDate").value = t;
+  busy(false);
+}
+function todayISO() {
+  const d = new Date(), z = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
+}
+
+/* ================= ① 事業所情報 ================= */
+function renderMasters(masters) {
+  const wrap = document.getElementById("masterList");
+  wrap.innerHTML = "";
+  masters.forEach((m, mi) => {
+    const d = document.createElement("details");
+    if (mi === 0) d.open = true;
+    const s = document.createElement("summary");
+    s.textContent = m.label + "（" + m.rows.length + "項目）";
+    s.style.background = m.color;
+    d.appendChild(s);
+    const box = document.createElement("div");
+    box.className = "fields";
+    m.rows.forEach((r) => {
+      const row = document.createElement("div");
+      row.className = "fieldrow";
+      row.innerHTML =
+        '<label>' + esc(labelOf(r.tag)) + '</label>' +
+        '<input type="text" data-sheet="' + esc(m.name) + '" data-tag="' + esc(r.tag) + '" value="' + esc(r.value) + '">' +
+        (r.note ? '<div class="fieldnote">' + esc(r.note) + '</div>' : '');
+      box.appendChild(row);
+    });
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.textContent = m.label + " の変更を保存";
+    btn.onclick = () => saveMaster(m.name, btn);
+    box.appendChild(btn);
+    d.appendChild(box);
+    wrap.appendChild(d);
+  });
+}
+function labelOf(tag) { return tag.split("_").slice(1).join("・") || tag; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+
+function saveMaster(sheetName, btn) {
+  const rows = [];
+  document.querySelectorAll('input[data-sheet="' + sheetName + '"]').forEach((el) => {
+    rows.push({ tag: el.dataset.tag, value: el.value });
+  });
+  busy(true, "保存しています…");
+  google.script.run
+    .withSuccessHandler((res) => { busy(false); toast(res.updated + "件を保存しました"); })
+    .withFailureHandler(fail)
+    .saveMaster(sheetName, rows);
+}
+
+/* ================= ② 書類発行 ================= */
+function renderTemplates(templates) {
+  const wrap = document.getElementById("templateList");
+  wrap.innerHTML = "";
+  templates.forEach((t) => {
+    const row = document.createElement("label");
+    row.className = "checkrow";
+    row.innerHTML = '<input type="checkbox" checked value="' + t.index + '">' + esc(t.outName);
+    wrap.appendChild(row);
+  });
+}
+
+/* --- 同意書の選択（2026-11-04 COCOiRO：初期値は「する」、必要なときだけ外す） --- */
+function renderConsents(items, photos) {
+  const wrap = document.getElementById("consentList");
+  wrap.innerHTML = "";
+  items.forEach((label, i) => {
+    const row = document.createElement("label");
+    row.className = "checkrow";
+    row.innerHTML = '<input type="checkbox" checked data-consent="' + i + '" onchange="this.nextElementSibling.textContent = this.checked ? \'する\' : \'しない\'">' + esc(label) + '：<b style="margin-left:4px">する</b>';
+    wrap.appendChild(row);
+  });
+  const sel = document.getElementById("photoChoice");
+  sel.innerHTML = photos.map((p, i) => '<option value="' + i + '">' + esc(p) + "</option>").join("");
+}
+function onSignerChange() {
+  const v = (document.querySelector('input[name="signer"]:checked') || {}).value;
+  document.getElementById("agentBox").hidden = v !== "代理人";
+}
+function copyClientAddr() {
+  document.getElementById("agentZip").value = document.getElementById("clientZip").value;
+  document.getElementById("agentAddr").value = document.getElementById("clientAddr").value;
+}
+
+/* --- 郵便番号から住所を入れる（利用者・代理人共通） --- */
+var zipTimers = {};
+function onZipInput(zipId, addrId, hintId) {
+  var z = (document.getElementById(zipId).value || "").replace(/[^0-9]/g, "");
+  var hint = document.getElementById(hintId);
+  clearTimeout(zipTimers[zipId]);
+  if (z.length !== 7) { hint.textContent = ""; return; }
+  hint.textContent = "住所を調べています…";
+  zipTimers[zipId] = setTimeout(function () { zipLookup(z, addrId, hintId); }, 200);
+}
+function zipLookup(z, addrId, hintId) {
+  var hint = document.getElementById(hintId);
+  var cb = "zipcb" + Date.now();
+  var done = false;
+  var ng = function () { if (!done) hint.textContent = "自動入力が使えませんでした。住所欄に直接入力してください。"; };
+  window[cb] = function (res) {
+    done = true;
+    var r = res && res.results && res.results[0];
+    if (!r) { hint.textContent = "この郵便番号では住所が見つかりませんでした。住所欄に直接入力してください。"; return; }
+    document.getElementById(addrId).value = r.address1 + r.address2 + r.address3;
+    hint.textContent = "住所を入れました。番地はこのあとに足してください。";
+    try { delete window[cb]; } catch (e) {}
+  };
+  var s = document.createElement("script");
+  s.src = "https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + z + "&callback=" + cb;
+  s.onerror = ng;
+  document.body.appendChild(s);
+  setTimeout(ng, 6000);
+}
+
+function generateDocs() {
+  const v = (id) => (document.getElementById(id).value || "").trim();
+  const signer = (document.querySelector('input[name="signer"]:checked') || {}).value || "本人";
+  const idx = Array.from(document.querySelectorAll("#templateList input:checked")).map(el => Number(el.value));
+  const form = {
+    clientName: v("clientName"), contractDate: v("contractDate"), startDate: v("startDate"),
+    clientZip: v("clientZip"), clientAddr: v("clientAddr"), explainerName: v("explainerName"), explainMethod: explainMethodValue(),
+    signer: signer, agentName: v("agentName"), agentRelation: v("agentRelation"), agentAddr: v("agentAddr"),
+    consents: Array.from(document.querySelectorAll("#consentList input")).map(el => el.checked),
+    photo: Number(document.getElementById("photoChoice").value || 0),
+    selected: idx,
+    office: OFFICE
+  };
+  if (!form.clientName) return toast("利用者のお名前を入力してください");
+  if (!form.clientAddr) return toast("利用者の住所を入力してください");
+  if (signer === "代理人" && (!form.agentName || !form.agentRelation || !form.agentAddr)) return toast("代理人のお名前・続柄・住所を入力してください");
+  if (idx.length === 0) return toast("書類を1つ以上選んでください");
+if (!form.explainMethod) return toast("説明方法を選ぶか、入力してください");
+  busy(true, "書類をつくっています…（1分ほどかかります）");
+  google.script.run
+    .withSuccessHandler((res) => {
+      busy(false);
+      let html = '<div class="result">✅ ' + res.files.length + '件の書類ができました。' +
+        '<br><a href="' + res.folderUrl + '" target="_blank">📁 ' + esc(form.clientName) + ' さんのフォルダを開く</a>';
+      res.files.forEach(f => { html += '<br>・<a href="' + f.url + '" target="_blank">' + esc(f.name) + '</a>'; });
+      html += "</div>";
+      if (res.errors.length) html += '<div class="result err">つくれなかった書類：<br>' + res.errors.map(esc).join("<br>") + "</div>";
+      document.getElementById("generateResult").innerHTML = html;
+      refreshClients();
+      toast("書類ができました");
+    })
+    .withFailureHandler(fail)
+    .generateForClient(form);
+}
+
+/* ================= ③ サイン ================= */
+function renderClients(clients) {
+  const sel = document.getElementById("signClient");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">選んでください</option>';
+  clients.forEach((c) => {
+    const o = document.createElement("option");
+    o.value = o.textContent = c;
+    sel.appendChild(o);
+  });
+  if (cur) sel.value = cur;
+}
+function refreshClients() {
+  google.script.run.withSuccessHandler((d) => renderClients(d.clients)).getInitData(OFFICE);
+}
+
+function loadDocs() {
+  const client = document.getElementById("signClient").value;
+  const listWrap = document.getElementById("pendingList");
+  const pdfWrap = document.getElementById("pdfList");
+  const info = document.getElementById("signerInfo");
+  SIGN_PENDING = 0;
+  document.getElementById("signResult").innerHTML = "";
+  updateSignStage();
+  if (!client) return;
+  listWrap.textContent = "読み込み中…";
+  info.textContent = "";
+  google.script.run
+    .withSuccessHandler((res) => {
+      SIGN_PENDING = res.pending.length;
+      listWrap.innerHTML = res.pending.length
+        ? res.pending.map(d => '<a href="' + d.url + '" target="_blank">📖 ' + esc(d.name) + "</a>").join("")
+        : "サインする書類はありません（すべて署名済み、またはまだ発行していません）";
+      const m = res.meta; if (typeof renderKeika === "function") renderKeika(m, client); renderRemote(res, client);
+      info.innerHTML = (m.signer === "代理人"
+        ? "サインする人：<b>" + esc(m.agentName) + "</b> さん（" + esc(m.clientName) + " さんの代理人・" + esc(m.agentRelation) + "）"
+        : "サインする人：<b>" + esc(m.clientName) + "</b> さん（ご本人）") +
+        '<br><span style="font-size:12px;color:var(--sub)">違うときは「書類発行」で発行し直してください（同じ日なら書類が置き換わります）</span>';
+      pdfWrap.innerHTML = res.pdfs.length
+        ? res.pdfs.map(p => '<a href="' + p.url + '" target="_blank">🧾 ' + esc(p.name) + "</a>").join("")
+        : "まだありません";
+      updateSignStage();
+    })
+    .withFailureHandler(fail)
+    .getSignInfo(OFFICE, client);
+}
+
+/* --- 手書きサインパッド --- */
+let canvas, ctx, drawing = false, hasInk = false;
+function setupCanvas() {
+  canvas = document.getElementById("signCanvas");
+  ctx = canvas.getContext("2d");
+  resizeCanvas();
+  window.addEventListener("resize", resizeCanvas);
+  const pos = (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    const p = ev.touches ? ev.touches[0] : ev;
+    return { x: (p.clientX - rect.left) * (canvas.width / rect.width), y: (p.clientY - rect.top) * (canvas.height / rect.height) };
+  };
+  const start = (ev) => { ev.preventDefault(); drawing = true; document.body.classList.add("signing"); const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  const move = (ev) => {
+    if (!drawing) return;
+    ev.preventDefault();
+    const p = pos(ev);
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    hasInk = true;
+    document.getElementById("signGuide").style.display = "none";
+  };
+  const end = () => { drawing = false; document.body.classList.remove("signing"); };
+  canvas.addEventListener("mousedown", start); canvas.addEventListener("mousemove", move); window.addEventListener("mouseup", end);
+  canvas.addEventListener("touchstart", start, { passive: false }); canvas.addEventListener("touchmove", move, { passive: false }); canvas.addEventListener("touchend", end);
+}
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return; // タブ非表示中は初期化しない
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = rect.width * scale;
+  canvas.height = 220 * scale;
+  ctx.lineWidth = 3.5 * scale; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1b1b1b";
+  hasInk = false;
+  document.getElementById("signGuide").style.display = "flex";
+}
+function clearSign() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.beginPath();
+  hasInk = false;
+  document.getElementById("signGuide").style.display = "flex";
+}
+
+function submitSign() {
+  const client = document.getElementById("signClient").value;
+  if (!client) return toast("利用者を選んでください");
+  if (!SIGN_PENDING) return toast("サインする書類がありません");
+  if (!hasInk) return toast("サインを書いてもらってください");
+  if (!confirm("この内容で、" + SIGN_PENDING + "件の書類に署名を確定します。よろしいですか？")) return;
+
+  const signDate = document.getElementById("signDate").value;
+  busy(true, "署名済みPDFをつくっています…（1分ほどかかります）");
+  google.script.run
+    .withSuccessHandler((res) => {
+      busy(false);
+      clearSign();
+      loadDocs();
+      let html = '<div class="result">✅ ' + res.files.length + '件の署名済みPDFを保存しました。' +
+        '<br><a href="' + res.folderUrl + '" target="_blank">📁 署名済みPDFのフォルダを開く</a>';
+      res.files.forEach(f => { html += '<br>・<a href="' + f.url + '" target="_blank">🧾 ' + esc(f.name) + "</a>"; });
+      html += "</div>";
+      if (res.errors.length) html += '<div class="result err">署名できなかった書類：<br>' + res.errors.map(esc).join("<br>") + "</div>";
+      document.getElementById("signResult").innerHTML = html;
+      toast("署名が完了しました");
+    })
+    .withFailureHandler(fail)
+    .signAll(OFFICE, client, getSignatureDataUrl(), signDate);
+}
+
+/** サイン部分だけを切り出したPNG（余白が大きいと署名欄で小さくなるため） */
+function getSignatureDataUrl() {
+  const w = canvas.width, h = canvas.height;
+  const px = ctx.getImageData(0, 0, w, h).data;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (px[(y * w + x) * 4 + 3] > 0) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return canvas.toDataURL("image/png");
+  const pad = Math.round(8 * (window.devicePixelRatio || 1));
+  minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+  const c = document.createElement("canvas");
+  c.width = maxX - minX + 1; c.height = maxY - minY + 1;
+  c.getContext("2d").drawImage(canvas, minX, minY, c.width, c.height, 0, 0, c.width, c.height);
+  return c.toDataURL("image/png");
+}
+/* ================= 説明方法・遠隔サイン（2026-11-26 COCOiRO v10） ================= */
+function renderExplainMethods(masters) {
+  let list = [];
+  (masters || []).forEach(m => m.rows.forEach(r => {
+    if (/_説明方法の選択肢$/.test(r.tag) && r.value && !list.length) list = String(r.value).split(/[、,，]/).map(s => s.trim()).filter(Boolean);
+  }));
+  if (!list.length) list = ["対面", "電話", "ビデオ通話"];
+  const sel = document.getElementById("explainMethod");
+  sel.innerHTML = list.map(o => '<option value="' + esc(o) + '">' + esc(o) + "</option>").join("") + '<option value="__other">その他(入力する)</option>';
+  onExplainMethod();
+}
+function onExplainMethod() {
+  document.getElementById("explainOtherBox").hidden = document.getElementById("explainMethod").value !== "__other";
+}
+function explainMethodValue() {
+  const v = document.getElementById("explainMethod").value;
+  return v === "__other" ? (document.getElementById("explainOther").value || "").trim() : v;
+}
+
+let REMOTE_CLIENT = "";
+function renderRemote(res, client) {
+  const box = document.getElementById("remoteBox");
+  if (!box) return;
+  REMOTE_CLIENT = client;
+  const r = res.remote;
+  if (!res.pending.length && !r) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  let html = '<b>📨 遠方のご家族にリンクで送る</b>' +
+    '<div class="rmhint">この場でサインできないときに使います。リンクをLINEなどで送り、4桁の確認番号は、リンクとは別に(お電話など)伝えてください。ご家族は、確認番号を入れて書類を確認し、日付を選んでサインするだけです。</div>';
+  if (r) {
+    if (r.state === "未使用") {
+      html += '<div class="rmstate wait">サイン待ち(有効期限 ' + esc(r.expiresAt) + ')' +
+        '<br>確認番号：<span class="rmcode">' + esc(r.code) + '</span>' +
+        (r.fails ? '<br><span style="color:#c5221f">確認番号のまちがい：' + r.fails + '回(5回で使えなくなります)</span>' : "") + "</div>";
+    } else if (r.state === "署名済み") {
+      html += '<div class="rmstate done">リンクから署名済み(' + esc(r.signedAt) + ')</div>';
+    } else {
+      html += '<div class="rmstate">前のリンク：' + esc(r.state) + "</div>";
+    }
+  }
+  if (res.pending.length) {
+    const again = r && r.state === "未使用";
+    html += '<div class="rmbtns"><button class="btn small" onclick="issueRemote(' + (again ? "true" : "false") + ')">' + (again ? "リンクを発行し直す" : "サイン用リンクを発行する") + "</button>" +
+      (again ? '<button class="btn gray small" onclick="revokeRemote()">このリンクを止める</button>' : "") + "</div>";
+  }
+  if (REMOTE_ISSUED && REMOTE_ISSUED.client === client && r && r.state === "未使用" && r.code === REMOTE_ISSUED.res.code) {
+    const x = REMOTE_ISSUED.res;
+    html += '<div class="rmissued">' +
+      '<div>① 下の文面をコピーして、' + esc(x.signerName) + ' 様にLINEなどで送ってください。</div>' +
+      '<textarea id="remoteMsg" readonly>' + esc(x.message) + '</textarea>' +
+      '<button class="btn green small" onclick="copyRemoteMsg()">文面をコピーする</button>' +
+      '<div style="margin-top:12px">② 確認番号は、この文面とは別に(お電話など)伝えてください(文面には入っていません)。</div>' +
+      '<div class="rmcode big">' + esc(x.code) + '</div>' +
+      '<div class="rmhint">有効期限：' + esc(x.expiresAt) + "まで。署名されると、このリンクは使えなくなります。</div></div>";
+  }
+  box.innerHTML = html;
+}
+let REMOTE_ISSUED = null;
+function issueRemote(again) {
+  if (!REMOTE_CLIENT) return;
+  if (again && !confirm("リンクを発行し直すと、前に送ったリンクは使えなくなります。発行し直しますか？")) return;
+  busy(true, "リンクを発行しています…");
+  google.script.run.withSuccessHandler((res) => {
+    busy(false);
+    REMOTE_ISSUED = { client: REMOTE_CLIENT, res: res };
+    loadDocs();
+    toast("リンクを発行しました");
+  }).withFailureHandler(fail).issueRemoteLink(OFFICE, REMOTE_CLIENT);
+}
+function revokeRemote() {
+  if (!REMOTE_CLIENT) return;
+  if (!confirm("送ったリンクを使えなくします。よろしいですか？")) return;
+  busy(true, "リンクを止めています…");
+  google.script.run.withSuccessHandler(() => { busy(false); loadDocs(); toast("リンクを止めました"); })
+    .withFailureHandler(fail).revokeRemoteLink(OFFICE, REMOTE_CLIENT);
+}
+function copyRemoteMsg() {
+  const ta = document.getElementById("remoteMsg");
+  const done = () => toast("文面をコピーしました");
+  const fallback = () => { ta.removeAttribute("readonly"); ta.select(); ta.setSelectionRange(0, 99999); try { document.execCommand("copy"); done(); } catch (e) { toast("長押しでコピーしてください"); } ta.setAttribute("readonly", ""); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, fallback);
+  else fallback();
+}
+
+/*@@OPTION:script*/
+</script>
+</body>
+</html>

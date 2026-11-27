@@ -1,0 +1,168 @@
+/* ================= 身体拘束の説明・同意書（2026-11-23 COCOiRO v8） ================= */
+function genCards() { return document.querySelectorAll("#page-generate > .card"); }
+function onGenMode() {
+  const mode = (document.querySelector('input[name="genMode"]:checked') || {}).value;
+  const cards = genCards(); // [0]切り替え [1]身体拘束 [2]契約書類
+  cards[1].hidden = mode !== "kousoku";
+  if (cards[2]) cards[2].hidden = mode === "kousoku";
+  if (mode === "kousoku") {
+    const mg = document.getElementById("k_manager");
+    if (!mg.value && DATA) {
+      DATA.masters.forEach(m => m.rows.forEach(r => { if (!mg.value && /管理者/.test(r.tag) && r.value) mg.value = r.value; }));
+    }
+    onKousokuChange();
+  }
+}
+function kRadio(name) { return (document.querySelector('input[name="' + name + '"]:checked') || {}).value || ""; }
+function onKousokuChange() {
+  document.getElementById("k_famMethodOtherBox").hidden = kRadio("k_famMethod") !== "その他";
+  document.getElementById("k_telBox").hidden = !document.getElementById("k_telOn").checked;
+  document.getElementById("k_agentBox").hidden = kRadio("k_signer") !== "代理人";
+  const fi = kRadio("k_famIntent"), si = kRadio("k_selfIntent");
+  document.getElementById("k_reBox").hidden = !(fi === "同意しない" || fi === "保留" || si === "同意しない" || si === "保留");
+}
+document.addEventListener("change", (ev) => { if (ev.target && ev.target.name === "k_selfIntent") onKousokuChange(); });
+
+function generateKousokuDocs() {
+  const v = (id) => (document.getElementById("k_" + id).value || "").trim();
+  const tel = document.getElementById("k_telOn").checked;
+  const form = {
+    office: OFFICE, clientName: v("clientName"),
+    caseAt: v("caseAt"), casePlace: v("casePlace"), caseState: v("caseState"),
+    seppaku: v("seppaku"), hidaitai: v("hidaitai"), method: v("method"), effect: v("effect"),
+    startAt: v("startAt"), endAt: v("endAt"), timeBand: v("timeBand"), maxMin: v("maxMin"),
+    ichiji: v("ichiji"), observe: v("observe"), reviewAt: v("reviewAt"), meetAt: v("meetAt"),
+    members: v("members"), decision: kRadio("k_decision"), decider: v("decider"), manager: v("manager"),
+    selfAt: v("selfAt"), selfBy: v("selfBy"), selfExplained: kRadio("k_selfExplained"), selfIntent: kRadio("k_selfIntent"), selfReaction: v("selfReaction"),
+    famAt: v("famAt"), famMethod: kRadio("k_famMethod"), famMethodOther: v("famMethodOther"), famWho: v("famWho"), famBy: v("famBy"),
+    telAt: tel ? v("telAt") : "", telWho: tel ? v("telWho") : "", telBy: tel ? v("telBy") : "", telNote: tel ? v("telNote") : "",
+    famIntent: kRadio("k_famIntent"), preNote: v("preNote"),
+    reNote: v("reNote"), reAt: v("reAt"), reStatus: kRadio("k_reStatus"), reWho: v("reWho"),
+    signer: kRadio("k_signer") || "本人", agentName: v("agentName"), agentRelation: v("agentRelation")
+  };
+  if (!form.clientName) return toast("利用者のお名前を入力してください");
+  if (!form.seppaku || !form.hidaitai || !form.ichiji) return toast("切迫性・非代替性・一時性の3つを入力してください");
+  if (!form.method) return toast("目的と具体的な方法を入力してください");
+  if (form.signer === "代理人" && (!form.agentName || !form.agentRelation)) return toast("サインするご家族等のお名前と続柄を入力してください");
+  busy(true, "書類をつくっています…");
+  google.script.run
+    .withSuccessHandler((res) => {
+      busy(false);
+      window.LAST_KOUSOKU = res.folderName;
+      let html = '<div class="result">✅ 説明・同意書と経過表ができました。' +
+        '<br><a href="' + res.folderUrl + '" target="_blank">📁 フォルダを開く</a>';
+      res.files.forEach(f => { html += '<br>・<a href="' + f.url + '" target="_blank">' + esc(f.name) + '</a>'; });
+      html += '<br><button class="btn green" style="margin-top:12px" onclick="goSignFor(LAST_KOUSOKU)">サインへ進む</button></div>';
+      document.getElementById("kousokuResult").innerHTML = html;
+      toast("書類ができました");
+    })
+    .withFailureHandler(fail)
+    .generateKousoku(form);
+}
+/** 発行した利用者を選んだ状態でサイン画面へ */
+function goSignFor(folderName) {
+  busy(true, "読み込み中です…");
+  google.script.run.withSuccessHandler((d) => {
+    busy(false);
+    renderClients(d.clients);
+    document.getElementById("signClient").value = folderName;
+    showPage("sign");
+    loadDocs();
+  }).withFailureHandler(fail).getInitData(OFFICE);
+}
+/** サイン画面：身体拘束のときは経過表への入り口を出す */
+function renderKeika(m, client) {
+  const box = document.getElementById("keikaBox");
+  if (!box) return;
+  if (!m || m.kind !== "kousoku" || !m.keikaUrl) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  const radios = (name, opts) => '<div class="radiorow">' + opts.map((o, i) => '<label><input type="radio" name="' + name + '" value="' + o + '"' + (i === 0 && name === "kk_status" ? " checked" : "") + '>' + o + '</label>').join("") + '</div>';
+  box.innerHTML =
+    '<b>📋 経過表(職員用)</b><br><span style="font-size:12px;color:var(--sub)">開始・一時解除・再開・終了のたびに記録します。入力した内容は経過表の2枚目に入ります。</span>' +
+    '<div id="keikaList" style="margin-top:10px;font-size:13px">読み込み中…</div>' +
+    '<p class="subhead" style="margin-top:14px">経過を記録する</p>' +
+    '<label>日時</label><input type="datetime-local" id="kk_at">' +
+    '<label>実施状況</label>' + radios("kk_status", ["開始", "継続", "一時解除", "再開", "終了"]) +
+    '<label>方法(空欄可)</label><input type="text" id="kk_method" placeholder="例)車いすの安全ベルト">' +
+    '<label>心身の状態・本人の訴え、試した対応とその結果</label><textarea id="kk_state"></textarea>' +
+    '<label>継続・解除の判断と根拠(継続・再開のときは、三要件をなお満たす根拠)</label><textarea id="kk_judge"></textarea>' +
+    '<label>次の確認時刻(空欄可)</label><input type="text" id="kk_next" placeholder="例)15時45分">' +
+    '<label>記録者</label><input type="text" id="kk_by">' +
+    '<button class="btn green" onclick="submitKeikaRow()">経過を記録する</button>' +
+    '<details style="margin-top:16px"><summary style="background:var(--gray)">再検討・最終解除を記録する</summary><div class="fields">' +
+    '<p class="hint" style="margin-top:8px">入力した欄だけ経過表に入ります。あとから追加で記録できます。</p>' +
+    '<label>再検討日時</label><input type="datetime-local" id="kr_at">' +
+    '<label>参加者(職種・氏名)</label><textarea id="kr_members"></textarea>' +
+    '<label>検討結果</label>' + radios("kr_result", ["継続", "方法変更", "解除"]) +
+    '<label>判断者</label><input type="text" id="kr_decider">' +
+    '<label>判断の根拠・次回検討日時</label><textarea id="kr_basis"></textarea>' +
+    '<label>最終解除の日時</label><input type="datetime-local" id="kr_endAt">' +
+    '<label>解除時のご本人の状態</label><textarea id="kr_endState"></textarea>' +
+    '<label>解除後の支援(代わりに行うケア・職員間で共有した内容)</label><textarea id="kr_after"></textarea>' +
+    '<label>ご本人・ご家族等への報告の日時</label><input type="datetime-local" id="kr_repAt">' +
+    '<label>相手・報告者・反応</label><textarea id="kr_repNote"></textarea>' +
+    '<label>記録者</label><input type="text" id="kr_by">' +
+    '<button class="btn green" onclick="submitKeikaReview()">再検討・最終解除を記録する</button>' +
+    '</div></details>' +
+    '<p class="subhead" style="margin-top:16px">経過表を見る・保存する</p>' +
+    '<a href="' + m.keikaUrl + '" target="_blank" style="display:inline-block;margin-top:8px">経過表を開く</a>' +
+    '<br><button class="btn gray small" style="margin-top:10px" onclick="saveKeikaPdf()">経過表をPDFにして保存する</button><div id="keikaResult"></div>';
+  document.getElementById("kk_at").value = nowLocalISO();
+  google.script.run.withSuccessHandler((res) => showKeikaRows(res.rows)).withFailureHandler((e) => {
+    document.getElementById("keikaList").textContent = "経過の読み込みに失敗しました：" + (e.message || e);
+  }).getKeikaRows(OFFICE, client);
+}
+function nowLocalISO() {
+  const d = new Date(), z = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()) + "T" + z(d.getHours()) + ":" + z(d.getMinutes());
+}
+function showKeikaRows(rows) {
+  const el = document.getElementById("keikaList");
+  if (!el) return;
+  if (!rows || !rows.length) { el.textContent = "まだ記録はありません。"; return; }
+  el.innerHTML = "記録済み：" + rows.length + "件" + rows.slice().reverse().slice(0, 5).map(r =>
+    '<div style="border-top:1px solid var(--line);padding:6px 0">' + esc(r[0]).replace(/\n/g, " ") + "｜<b>" + esc(r[1]) + "</b>｜" + esc(r[4]) + "</div>").join("") +
+    (rows.length > 5 ? '<div style="color:var(--sub)">(新しい5件を表示)</div>' : "");
+}
+function submitKeikaRow() {
+  const client = document.getElementById("signClient").value;
+  const v = (id) => (document.getElementById(id).value || "").trim();
+  const x = { at: v("kk_at"), status: kRadio("kk_status"), method: v("kk_method"), state: v("kk_state"), judge: v("kk_judge"), next: v("kk_next"), by: v("kk_by") };
+  if (!client) return;
+  if (!x.at) return toast("日時を入力してください");
+  if (!x.state && !x.judge) return toast("心身の状態か、判断と根拠を入力してください");
+  if (!x.by) return toast("記録者を入力してください");
+  busy(true, "経過を記録しています…");
+  google.script.run.withSuccessHandler((res) => {
+    busy(false);
+    showKeikaRows(res.rows);
+    ["kk_method", "kk_state", "kk_judge", "kk_next"].forEach(id => (document.getElementById(id).value = ""));
+    document.getElementById("kk_at").value = nowLocalISO();
+    toast("経過を記録しました");
+  }).withFailureHandler(fail).addKeikaRow(OFFICE, client, x);
+}
+function submitKeikaReview() {
+  const client = document.getElementById("signClient").value;
+  const v = (id) => (document.getElementById(id).value || "").trim();
+  const x = { at: v("kr_at"), members: v("kr_members"), result: kRadio("kr_result"), decider: v("kr_decider"), basis: v("kr_basis"),
+    endAt: v("kr_endAt"), endState: v("kr_endState"), after: v("kr_after"), repAt: v("kr_repAt"), repNote: v("kr_repNote"), by: v("kr_by") };
+  if (!client) return;
+  if (!(x.at || x.members || x.result || x.basis || x.endAt || x.endState || x.after || x.repAt || x.repNote)) return toast("記録する内容を入力してください");
+  if (!x.by) return toast("記録者を入力してください");
+  busy(true, "記録しています…");
+  google.script.run.withSuccessHandler((res) => {
+    busy(false);
+    showKeikaRows(res.rows);
+    toast("再検討・最終解除を記録しました");
+  }).withFailureHandler(fail).saveKeikaReview(OFFICE, client, x);
+}
+function saveKeikaPdf() {
+  const client = document.getElementById("signClient").value;
+  if (!client) return;
+  busy(true, "経過表をPDFにしています…");
+  google.script.run.withSuccessHandler((res) => {
+    busy(false);
+    document.getElementById("keikaResult").innerHTML = '<a href="' + res.url + '" target="_blank">🧾 ' + esc(res.name) + '</a>';
+    toast("経過表のPDFを保存しました");
+  }).withFailureHandler(fail).exportKeikaPdf(OFFICE, client);
+}

@@ -1,0 +1,148 @@
+    <!-- 2026-11-23 COCOiRO v8：つくる書類の切り替え -->
+    <div class="card">
+      <h2>📄 書類発行</h2>
+      <p class="hint">つくる書類を選んでください。</p>
+      <div class="radiorow">
+        <label><input type="radio" name="genMode" value="contract" checked onchange="onGenMode()">契約書類一式</label>
+        <label><input type="radio" name="genMode" value="kousoku" onchange="onGenMode()">身体拘束の説明・同意書</label>
+      </div>
+    </div>
+
+    <div class="card" id="genKousoku" hidden>
+      <h2>🛡 身体拘束の説明・同意書と経過表</h2>
+      <p class="hint">職員がすべて入力します。ご本人・ご家族は、サイン画面で日付を選んでサインするだけです。同じ内容が経過表の1枚目にも入ります。</p>
+
+      <label>利用者のお名前</label>
+      <input type="text" id="k_clientName" placeholder="例)山田 太郎">
+
+      <p class="subhead">事例と事業所の判断</p>
+      <label>事例の発生日時</label>
+      <input type="datetime-local" id="k_caseAt">
+      <label>発生した場所</label>
+      <input type="text" id="k_casePlace" placeholder="例)デイルーム">
+      <label>発生時の心身の状態、ご本人の言葉・反応</label>
+      <textarea id="k_caseState"></textarea>
+      <label>差し迫った危険(切迫性)：どなたに、どのような危険が生じているか</label>
+      <textarea id="k_seppaku"></textarea>
+      <label>ほかに試した対応と結果(非代替性)：どのような対応を試し、なぜ危険を避けられなかったか</label>
+      <textarea id="k_hidaitai"></textarea>
+      <label>目的と具体的な方法：どの場面で、何を用い、どの部位の動きを制限するか</label>
+      <textarea id="k_method"></textarea>
+      <label>予想される心身への影響と観察・配慮の方法</label>
+      <textarea id="k_effect"></textarea>
+      <label>実施を予定する期間：開始</label>
+      <input type="datetime-local" id="k_startAt">
+      <label>実施を予定する期間：終了</label>
+      <input type="datetime-local" id="k_endAt">
+      <label>時間帯</label>
+      <input type="text" id="k_timeBand" placeholder="例)入浴前後の30分">
+      <label>1回の最長時間(分)</label>
+      <input type="number" id="k_maxMin" inputmode="numeric" placeholder="例)15">
+      <label>最短とする根拠と解除の目安(一時性)</label>
+      <textarea id="k_ichiji"></textarea>
+      <label>観察項目・間隔・担当者(経過表に入ります)</label>
+      <textarea id="k_observe"></textarea>
+      <label>次に見直す日時</label>
+      <input type="datetime-local" id="k_reviewAt">
+      <label>事業所で検討した日時</label>
+      <input type="datetime-local" id="k_meetAt">
+      <label>参加者(職種・氏名)</label>
+      <textarea id="k_members"></textarea>
+      <label>決定内容(経過表に入ります)</label>
+      <div class="radiorow">
+        <label><input type="radio" name="k_decision" value="時間を限って実施する" checked>時間を限って実施する</label>
+        <label><input type="radio" name="k_decision" value="実施を見送る">実施を見送る</label>
+      </div>
+      <label>判断者(経過表に入ります)</label>
+      <input type="text" id="k_decider">
+      <label>管理者氏名</label>
+      <input type="text" id="k_manager">
+
+      <p class="subhead">ご本人への説明と意向</p>
+      <label>ご本人への説明日時</label>
+      <input type="datetime-local" id="k_selfAt">
+      <label>説明者(職種・氏名)</label>
+      <input type="text" id="k_selfBy">
+      <label>説明</label>
+      <div class="radiorow">
+        <label><input type="radio" name="k_selfExplained" value="説明した">説明した</label>
+        <label><input type="radio" name="k_selfExplained" value="説明が難しかった">説明が難しかった</label>
+      </div>
+      <label>ご本人の意向</label>
+      <div class="radiorow">
+        <label><input type="radio" name="k_selfIntent" value="同意する">同意する</label>
+        <label><input type="radio" name="k_selfIntent" value="同意しない">同意しない</label>
+        <label><input type="radio" name="k_selfIntent" value="保留">保留</label>
+        <label><input type="radio" name="k_selfIntent" value="意向確認が難しい">意向確認が難しい</label>
+      </div>
+      <label>ご本人の言葉・表情等(説明・意思確認・署名が難しかった場合は、その理由も)</label>
+      <textarea id="k_selfReaction"></textarea>
+
+      <p class="subhead">ご家族等への説明と意向</p>
+      <label>説明日時</label>
+      <input type="datetime-local" id="k_famAt">
+      <label>方法</label>
+      <div class="radiorow">
+        <label><input type="radio" name="k_famMethod" value="対面" onchange="onKousokuChange()">対面</label>
+        <label><input type="radio" name="k_famMethod" value="電話" onchange="onKousokuChange()">電話</label>
+        <label><input type="radio" name="k_famMethod" value="その他" onchange="onKousokuChange()">その他</label>
+      </div>
+      <div id="k_famMethodOtherBox" hidden>
+        <label>その他の方法</label>
+        <input type="text" id="k_famMethodOther">
+      </div>
+      <label>相手・続柄</label>
+      <input type="text" id="k_famWho" placeholder="例)山田 花子・長女">
+      <label>説明者</label>
+      <input type="text" id="k_famBy">
+      <label class="checkrow" style="margin-top:12px"><input type="checkbox" id="k_telOn" onchange="onKousokuChange()">電話で先に説明した</label>
+      <div id="k_telBox" hidden>
+        <label>電話日時</label>
+        <input type="datetime-local" id="k_telAt">
+        <label>相手・続柄</label>
+        <input type="text" id="k_telWho">
+        <label>説明者</label>
+        <input type="text" id="k_telBy">
+        <label>説明した内容・ご意向・質問等</label>
+        <textarea id="k_telNote"></textarea>
+      </div>
+      <label>ご家族等の意向</label>
+      <div class="radiorow">
+        <label><input type="radio" name="k_famIntent" value="同意する" onchange="onKousokuChange()">同意する</label>
+        <label><input type="radio" name="k_famIntent" value="同意しない" onchange="onKousokuChange()">同意しない</label>
+        <label><input type="radio" name="k_famIntent" value="保留" onchange="onKousokuChange()">保留</label>
+      </div>
+      <label>事前に説明できなかった場合の理由と、その後の説明経過(経過表に入ります／空欄可)</label>
+      <textarea id="k_preNote"></textarea>
+
+      <div id="k_reBox" hidden>
+        <p class="subhead">「同意しない」「保留」の場合</p>
+        <p class="hint" style="margin-top:6px">ご心配やご希望を伺い、管理者に共有します。代わりにできるケアと三要件を再検討し、その結果を改めて説明します。</p>
+        <label>ご意向と再検討の結果</label>
+        <textarea id="k_reNote"></textarea>
+        <label>再説明の日時</label>
+        <input type="datetime-local" id="k_reAt">
+        <div class="radiorow" style="margin-top:8px">
+          <label><input type="radio" name="k_reStatus" value="予定">予定</label>
+          <label><input type="radio" name="k_reStatus" value="実施">実施</label>
+        </div>
+        <label>相手・説明者・回答</label>
+        <textarea id="k_reWho"></textarea>
+      </div>
+
+      <p class="subhead">サインする人</p>
+      <div class="radiorow" style="margin-top:10px">
+        <label><input type="radio" name="k_signer" value="本人" checked onchange="onKousokuChange()">ご本人</label>
+        <label><input type="radio" name="k_signer" value="代理人" onchange="onKousokuChange()">ご家族等</label>
+      </div>
+      <div id="k_agentBox" hidden>
+        <label>サインするご家族等のお名前</label>
+        <input type="text" id="k_agentName" placeholder="例)山田 花子">
+        <label>続柄</label>
+        <input type="text" id="k_agentRelation" placeholder="例)長女">
+      </div>
+
+      <button class="btn" onclick="generateKousokuDocs()">説明・同意書と経過表をつくる</button>
+      <div id="kousokuResult"></div>
+    </div>
+

@@ -1,0 +1,14 @@
+{
+  "name": "Solrian",
+  "account": "cocoiro@solrian.net",
+  "options": ["kousoku"],
+  "app": {
+    "scriptId": "1nOOqdRLH0Ge4ymf_YwW9odm-xAp_brTvdpeI4tDLJiuWtzCL_ZzKamm2",
+    "deploymentId": "AKfycbxQ4ay26pEHwzZ352147GIRjmsc3kLG_gMD5WEBoMHOmjIpWcYsx3kB9Km1dlZTVM8k",
+    "testUrl": "https://script.google.com/a/macros/solrian.net/s/AKfycbw1YN51WWUBckCPdqkifC1yI2IOQkPYJueQWb0QUVQ/dev?office=misato"
+  },
+  "remote": {
+    "scriptId": "1WQfgwyWJ3_9OfQZQbn9Ri4h075FT-FLEJ1GeNR1NNw1rzKC6K9F0hUWt",
+    "deploymentId": "AKfycbxr7RZ_YNs3JqH1Z9fhjMTr3n-qygb6KCVUPv_GKdoxwB_HVV_yWhHhnkldsfnuXHvf"
+  }
+}
