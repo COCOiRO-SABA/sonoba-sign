@@ -501,7 +501,7 @@ function remoteStatus_(folderId) {
     const r = x.rows[i];
     if (String(r[5]) !== folderId) continue;
     return {
-      state: remoteState_(r), code: String(r[1]), signerName: String(r[8]),
+      state: remoteState_(r), code: ("0000" + String(r[1])).slice(-4), signerName: String(r[8]),
       issuedAt: remoteFmt_(r[9]), expiresAt: remoteFmt_(r[10]), signedAt: remoteFmt_(r[14]), fails: Number(r[12]) || 0
     };
   }

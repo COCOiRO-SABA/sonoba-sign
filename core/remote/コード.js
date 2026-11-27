@@ -78,7 +78,8 @@ function check_(token, code, opts) {
       throw new Error("リンクの有効期限が切れています。" + call);
     }
 
-    if (String(code || "") !== String(r[C.code - 1])) {
+    // 先頭の0がスプレッドシートで数値になって消えることがあるため、4桁にそろえて比べる(2026-11-27 COCOiRO)
+    if (String(code || "").replace(/[^0-9]/g, "").length !== 4 || code4_(code) !== code4_(r[C.code - 1])) {
       if (status !== "未使用") throw new Error("確認番号がちがいます。");
       const fails = (Number(r[C.fails - 1]) || 0) + 1;
       sh.getRange(row, C.fails).setValue(fails);
@@ -268,6 +269,7 @@ function toWareki_(d) {
 function escapeRegex_(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+function code4_(v) { return ("0000" + String(v === null || v === undefined ? "" : v).replace(/[^0-9]/g, "")).slice(-4); }
 function fmt_(d) {
   return d ? Utilities.formatDate(new Date(d), "Asia/Tokyo", "yyyy/MM/dd HH:mm") : "";
 }
