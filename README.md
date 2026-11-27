@@ -14,14 +14,16 @@
   - `app/legacy_*.js` … その会社で1回だけ実行した作業(本体からは呼ばない)
   - `remote/config.js` … マスターのID
 
-## 組み立てと配布
+## 組み立てと配布(GitHub Actions)
 
-```
-node tools/build.mjs solrian           # dist/solrian/{app,remote} を作る
-python3 tools/deploy.py solrian        # テスト(HEAD)に反映するだけ
-python3 tools/deploy.py solrian --prod "説明"   # 新しいバージョンを作り、本番デプロイに当てる(URLは変わらない)
-```
+- main に上げる → 全社のテスト環境(/dev)に自動で反映
+- 本番に出す：Actions タブ →「そのばサイン 配布」→「Run workflow」→ customer(会社名 or all)・target=prod・description(何を直したか)を入れて実行。新しいバージョンを作って既存のデプロイに当てるのでURLは変わらない。戻すときは「デプロイを管理」で前のバージョンを選ぶ
+- 各社のログイン情報：リポジトリの Settings → Secrets and variables → Actions に `CLASPRC_<会社名の大文字>`(例：CLASPRC_SOLRIAN)。中身は、その会社の作業アカウントで `clasp login --no-localhost` したあとの `~/.clasprc.json`
+- 手元で動かす場合：`node tools/build.mjs solrian` → `python3 tools/deploy.py solrian`(テスト) / `python3 tools/deploy.py solrian --prod "説明"`(本番)
+- 職員用アプリの公開範囲は必ず DOMAIN。core/app/appsscript.json で固定し、本番反映時にも確認している
 
-- 配布には各社の作業アカウントで clasp にログインしておく(`clasp login --no-localhost`)
-- 本番に出す前に、テスト(/dev)と一時テスト関数で確認する
-- 職員用アプリの公開範囲は必ず DOMAIN(その会社のドメインの全員)。core/app/appsscript.json で固定している
+## 新しい会社を足す
+
+1. `customers/<会社>/customer.json`・`app/config.js`・`remote/config.js` を作る(solrian を参考に)
+2. その会社の作業アカウントで clasp にログインし、`~/.clasprc.json` の中身をシークレット `CLASPRC_<会社名の大文字>` に登録
+3. main に上げてテスト環境で確認 → 本番

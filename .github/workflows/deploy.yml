@@ -1,0 +1,48 @@
+name: そのばサイン 配布
+
+on:
+  # main に上がったら、全社のテスト環境(/dev)に反映する
+  push:
+    branches: [main]
+    paths: [core/**, options/**, customers/**, tools/**]
+  # 手動：Actions タブ →「そのばサイン 配布」→「Run workflow」
+  workflow_dispatch:
+    inputs:
+      customer:
+        description: 会社(customers/ のフォルダ名。全社なら all)
+        required: true
+        default: all
+      target:
+        description: test = テスト環境だけ / prod = 本番(新しいバージョンを作って既存のURLに当てる)
+        type: choice
+        options: [test, prod]
+        default: test
+      description:
+        description: 本番のときは必須。何を直したか(バージョンの説明になる)
+        required: false
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 構文チェック
+        run: |
+          for c in customers/*/; do node tools/build.mjs "$(basename "$c")"; done
+          for f in dist/*/*/*.js; do node --check "$f"; done
+      - name: 配布
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python3 tools/ci_deploy.py "${{ inputs.customer }}" "${{ inputs.target }}" "${{ inputs.description }}"
+          else
+            python3 tools/ci_deploy.py all test
+          fi

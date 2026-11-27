@@ -1,7 +1,7 @@
 # Apps Script API の小さな道具(claspのログイン情報を使う)
-import json, sys, urllib.request, urllib.parse
+import json, os, sys, urllib.request, urllib.parse
 def token():
-    rc = json.load(open('/root/.clasprc.json'))
+    rc = json.load(open(os.environ.get('CLASPRC_PATH', os.path.expanduser('~/.clasprc.json'))))
     t = rc.get('tokens', {}).get('default', rc.get('token', {}))
     d = urllib.parse.urlencode({'client_id': t['client_id'], 'client_secret': t['client_secret'], 'refresh_token': t['refresh_token'], 'grant_type': 'refresh_token'}).encode()
     return json.load(urllib.request.urlopen('https://oauth2.googleapis.com/token', d))['access_token']
